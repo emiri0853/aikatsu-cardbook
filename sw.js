@@ -1,5 +1,5 @@
 // アプリ本体はネット優先で読むので、ファイルを差し替えるだけで更新が反映されます
-const CACHE = "cardbook-v1";
+const CACHE = "cardbook-v2";
 const SHELL = ["./", "./index.html", "./cards.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 const CDN = ["https://cdn.jsdelivr.net/", "https://fonts.googleapis.com/", "https://fonts.gstatic.com/"];
@@ -18,7 +18,7 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   // アプリ本体: ネット優先（更新をすぐ反映）、オフライン時はキャッシュ
   if (url.origin === location.origin) {
-    e.respondWith(fetch(req).then(res => {
+    e.respondWith(fetch(req, {cache: "no-cache"}).then(res => {
       const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res;
     }).catch(() => caches.match(req).then(r => r || caches.match("./index.html"))));
     return;

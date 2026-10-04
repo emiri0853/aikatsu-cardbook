@@ -130,6 +130,7 @@ img.land{inset:auto !important;left:50% !important;top:50% !important;position:a
 .typedot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px var(--surface)}
 .name{font-size:12.5px;color:var(--muted);min-height:2.7em;line-height:1.35;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .name.set{color:var(--ink)}
+.meta{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .ctrl{padding:4px 10px 10px;display:flex;flex-direction:column;gap:7px}
 .step{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:999px;padding:2px}
 .step button{border:0;background:var(--surface);width:34px;height:34px;font-size:20px;font-weight:800;color:var(--pink);border-radius:50%;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -352,7 +353,7 @@ MASTER.sets.forEach(s=>(s.cards||[]).forEach(row=>{
   const no = String(row[0]).normalize("NFKC").trim().toUpperCase();
   if (BASE_NOS.has(no)) return;
   const r = RAR_ORDER[String(row[1]).toUpperCase()]!==undefined ? String(row[1]).toUpperCase() : "N";
-  BASE.push({no, rar:r, set:String(s.name||s.id), setId:String(s.id), mname:row[2]?String(row[2]):"", master:true});
+  BASE.push({no, rar:r, set:String(s.name||s.id), setId:String(s.id), mname:row[2]?String(row[2]):"", cat:row[3]?String(row[3]):"", idol:row[4]?String(row[4]):"", master:true});
   BASE_NOS.add(no);
 }));
 // 公式カードリストの画像URLは「番号_レアリティ」の規則（E1, E2… の弾のみ）
@@ -363,7 +364,7 @@ const LS_KEY = "aikatsu-encore-v1";
 let store = {cards:{}, custom:[], qrmap:{}};
 let scans = [];
 try { const s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); if (s){ store = Object.assign(store, s.store||{}); scans = s.scans||[]; } } catch(e){}
-const ui = {q:"", status:"all", rar:"all", type:"all", set:"all", sort:"num", thumbs:true, official:true, tab:"list"};
+const ui = {q:"", status:"all", rar:"all", type:"all", set:"all", cat:"all", idol:"all", sort:"num", thumbs:true, official:true, tab:"list"};
 try { ui.thumbs = localStorage.getItem(LS_KEY+":thumbs")!=="0"; ui.official = localStorage.getItem(LS_KEY+":official")!=="0"; } catch(e){}
 
 // 表示するカード = マスタ ＋ 自分で追加したカード ＋ データだけ残っているカード
@@ -482,6 +483,8 @@ function matches(c){
   if (ui.status==="dup" && s.own<2) return false;
   if (ui.rar!=="all" && c.rar!==ui.rar) return false;
   if (ui.set!=="all" && c.setId!==ui.set && !(ui.set==="custom" && c.setId==="orphan")) return false;
+  if (ui.cat!=="all" && c.cat!==ui.cat) return false;
+  if (ui.idol!=="all" && c.idol!==ui.idol) return false;
   if (ui.type!=="all"){ if (ui.type==="none" ? s.type : s.type!==ui.type) return false; }
   return matchesText(c);
 }
@@ -491,7 +494,7 @@ function matchesText(c){
   if (!q) return true;
   return q.split(/\s+/).every(w=>{
     if (/^\d{1,3}$/.test(w)) return parseInt(c.no.split("-")[1],10)===parseInt(w,10) || c.no.includes(w);
-    const hay = kana([c.no, c.rar, s.name, c.mname, s.memo, s.type, c.set].join(" "));
+    const hay = kana([c.no, c.rar, s.name, c.mname, c.cat, c.idol, s.memo, s.type, c.set].join(" "));
     const loose = x => x.replace(/[-\s・･]/g,"");
     return hay.includes(w) || loose(hay).includes(loose(w));
   });
@@ -505,7 +508,7 @@ function sorted(list){
 
 /* ---------- render: chips ---------- */
 const SORTS = [["num","番号順"],["rar","レア順"],["own","所持数順"]];
-const FILTER_KEYS = ["status","rar","type","set"];
+const FILTER_KEYS = ["status","rar","type","set","cat","idol"];
 function filterDefs(){
   const cnt = f => allCards().filter(c=>f(c, st(c.no))).length;
   const extra = allCards().some(c=>c.setId==="custom"||c.setId==="orphan") ? [["custom","自分で追加", cnt(c=>c.setId==="custom"||c.setId==="orphan")]] : [];
@@ -514,6 +517,8 @@ function filterDefs(){
       ["want","求",cnt((c,s)=>s.want)],["give","譲",cnt((c,s)=>s.giveCount>0)],["dup","ダブり",cnt((c,s)=>s.own>1)]]},
     {key:"rar", title:"レアリティ", opts:[["all","すべて"], ...["ER","PR","R","N"].map(r=>[r,r,cnt(c=>c.rar===r)])]},
     {key:"type", title:"タイプ", opts:[["all","すべて"], ...TYPES.map(t=>[t,t,cnt((c,s)=>s.type===t)]), ["none","未設定",cnt((c,s)=>!s.type)]]},
+    {key:"idol", title:"アイドル", opts:[["all","すべて"], ...[...new Set(BASE.map(c=>c.idol).filter(Boolean))].map(x=>[x,x,cnt(c=>c.idol===x)])]},
+    {key:"cat", title:"カテゴリ", opts:[["all","すべて"], ...["トップス","ボトムス","シューズ","アクセサリー","トップス&ボトムス","フルコーデ"].filter(x=>BASE.some(c=>c.cat===x)).map(x=>[x,x,cnt(c=>c.cat===x)])]},
     {key:"set", title:"弾", opts:[["all","すべて"], ...SETS.map(x=>[x.id,x.name,cnt(c=>c.setId===x.id)]), ...extra]},
   ];
 }
@@ -570,6 +575,7 @@ function cardHtml(c){
     <button class="face" data-act="open" aria-label="${esc(label(c))}の詳細">
       <div class="num">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span> ${dot}</div>
       <div class="name ${displayName(c)?"set":""}">${displayName(c)?hl(displayName(c)):"名前を登録 ✎"}</div>
+      ${c.idol||c.cat?`<div class="meta">${esc([c.idol,c.cat].filter(Boolean).join(" / "))}</div>`:""}
     </button>
     <div class="ctrl">
       <div class="step">
@@ -661,7 +667,7 @@ function renderSuggest(){
     const hits = sorted(allCards().filter(matchesText)).slice(0,8);
     html = `<button class="sg-item sg-all" data-sg="q" data-v="${esc(q)}"><span class="ico">🔍</span>「${esc(q)}」で検索</button>` +
       (hits.length ? hits.map(c=>{ const n=displayName(c);
-        return `<button class="sg-item sg-card" data-sg="card" data-v="${esc(c.no)}"><span class="sg-th" data-sthumb="${esc(c.no)}"></span><span class="sg-tx"><span class="sg-name">${n?hl(n):"名前未登録"}</span><span class="sg-no">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span></span></span></button>`; }).join("")
+        return `<button class="sg-item sg-card" data-sg="card" data-v="${esc(c.no)}"><span class="sg-th" data-sthumb="${esc(c.no)}"></span><span class="sg-tx"><span class="sg-name">${n?hl(n):"名前未登録"}</span><span class="sg-no">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span>${c.idol?esc(c.idol):""}</span></span></button>`; }).join("")
         : `<div class="sg-none">一致するカードはありません</div>`);
     ui.q = prev;
   }
@@ -951,6 +957,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
+const APP_VERSION = "2026-10-04 r8";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -989,6 +996,7 @@ $("#gearBtn").addEventListener("click", ()=>{
       <p>所持数・求譲・名前・履歴・写真をすべて消去します。</p>
       <button class="btn small danger" id="bkReset">すべてのデータを消去</button>
     </div>
+    <p class="note">アプリの版：${APP_VERSION}</p>
     <div class="btns"><button class="btn" id="bkClose">閉じる</button></div>`);
   $("#bkClose").onclick = closeSheet;
   const sr=$("#snapRestore"); if (sr) sr.onclick = ()=>{
