@@ -226,11 +226,48 @@ a.btn{text-decoration:none;display:inline-block}
 @media (prefers-reduced-motion:reduce){.pop{transition:none}}
 .recent-h{font-size:12px;font-weight:800;color:var(--muted);margin:4px 4px 6px}
 .recent{list-style:none;margin:0;padding:0}
-.recent li{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:8px 8px 8px 14px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.recent li{background:var(--surface);box-shadow:var(--shadow);border-radius:16px;padding:8px 8px 8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .rmain{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rmain select{width:100%;border:2px solid var(--pink);border-radius:12px;background:var(--bg);padding:6px}
-.plus{color:var(--mint);font-weight:800;margin-left:6px}
-.undo{flex:none;border:0;background:var(--bg);color:var(--pink-deep);font-weight:800;font-size:13px;border-radius:999px;padding:7px 12px}
+.rmain b{display:block;font-size:13px;line-height:1.2}
+.rname{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr{flex:none;display:flex;gap:4px}
+.lr button{border:2px solid var(--line);background:none;border-radius:10px;width:38px;height:36px;font-weight:800;font-size:14px;color:var(--muted)}
+.lr button[aria-pressed="true"]{background:var(--lav);border-color:var(--lav);color:#fff}
+.undo{flex:none;border:0;background:var(--bg);color:var(--pink-deep);font-weight:800;font-size:12px;border-radius:999px;padding:9px 10px}
+.sidebar{margin:6px 0 10px;display:flex;flex-direction:column;gap:8px}
+.sidepick{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
+.sidepick button{border:0;background:none;border-radius:999px;padding:10px 12px;font-weight:800;font-size:15px;color:var(--muted)}
+.sidepick button{font-size:14px}
+.sidepick button[aria-checked="true"]{background:linear-gradient(135deg,var(--lav),#C7B3FF);color:#fff;box-shadow:0 3px 10px rgba(169,139,255,.35)}
+.sidepick button[data-smode="off"][aria-checked="true"]{background:var(--bg);color:var(--ink);box-shadow:none}
+#placeIn[hidden]{display:none}
+.zones{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;pointer-events:none}
+.zones[hidden]{display:none}
+.zones span{display:flex;align-items:flex-start;justify-content:center;padding-top:12px;color:#fff;font-size:12px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.6);
+  border:3px dashed rgba(199,179,255,.9);margin:10px 5px 10px 10px;border-radius:18px}
+.zones span+span{margin:10px 10px 10px 5px;border-color:rgba(255,143,196,.9)}
+#placeIn{border:2px solid transparent;background:var(--surface);border-radius:999px;padding:9px 16px;box-shadow:var(--shadow);font-size:14px;width:100%}
+#placeIn:focus{border-color:var(--lav);outline:none}
+.sd{font-style:normal;display:inline-grid;place-items:center;background:var(--lav);color:#fff;border-radius:6px;font-size:11px;font-weight:800;width:20px;height:20px;margin-right:6px;vertical-align:2px}
+.pop .sd{background:#fff;color:var(--mint);width:24px;height:24px;font-size:13px;vertical-align:3px}
+.hist .sidesel{max-width:52px}
+.hseg{margin-top:6px}
+.hseg button[aria-selected="true"]{background:linear-gradient(135deg,var(--pink),#FF8FC4);color:#fff}
+.ocols>div{min-width:0}
+.ogroup{background:var(--surface);box-shadow:var(--shadow);border-radius:20px;padding:12px 12px 6px;margin-bottom:12px}
+.ogroup h3{margin:0 0 8px;font-size:15px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ogroup h3 small{font-size:12px;color:var(--muted);font-weight:700}
+.ocols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.oh{font-size:12px;font-weight:800;color:var(--lav);margin-bottom:4px}
+.oh b{color:var(--ink);margin-left:2px}
+.ocol{margin:0;padding:0 0 0 1.6em;font-size:12px}
+.ocol li{padding:4px 0;border-bottom:1px dashed var(--line);min-width:0}
+.ocol li::marker{color:var(--muted);font-weight:800}
+.ono{font-weight:800;margin-right:4px}
+.ocol .rar{font-size:9.5px;padding:0 5px}
+.onm{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.onone{font-size:12px;color:var(--muted);margin:4px 0 8px}
 .scan-actions{display:flex;gap:8px;justify-content:center;margin:14px 0;flex-wrap:wrap}
 .result{background:var(--surface);box-shadow:var(--shadow);border-radius:20px;padding:14px;margin-top:8px}
 .result .raw{font-size:12px;color:var(--muted);word-break:break-all;margin-top:4px}
@@ -302,10 +339,18 @@ a.btn{text-decoration:none;display:inline-block}
 
   <!-- SCAN -->
   <section class="panel" id="p-scan" hidden>
+    <div class="sidebar">
+      <div class="sidepick" role="radiogroup" aria-label="排出口（左右）の記録">
+        <button data-smode="pos" role="radio">左右を記録する</button>
+        <button data-smode="off" role="radio">記録しない</button>
+      </div>
+      <input id="placeIn" type="text" placeholder="店舗・筐体（例: 駅前ゲーセン 1号機）" autocomplete="off" aria-label="店舗・筐体">
+    </div>
     <div class="scanbox" id="scanbox">
-      <div class="idle" id="scanIdle">カメラを起動して、カード裏の2次元コードを枠に合わせてね</div>
+      <div class="idle" id="scanIdle">カメラを起動して、カード裏の2次元コードをかざしてね</div>
       <video id="video" playsinline muted hidden></video>
       <div class="frame" id="frame" hidden></div>
+      <div class="zones" id="zones" hidden><span>◀ 左から出たカード</span><span>右から出たカード ▶</span></div>
       <div class="pop" id="scanPop" aria-live="polite"></div>
     </div>
     <div class="scan-actions">
@@ -318,6 +363,12 @@ a.btn{text-decoration:none;display:inline-block}
 
   <!-- HISTORY -->
   <section class="panel" id="p-hist" hidden>
+    <div class="seg hseg" role="tablist" aria-label="履歴の表示切り替え">
+      <button data-hmode="list" aria-selected="true">読み込み履歴</button>
+      <button data-hmode="order" aria-selected="false">配列</button>
+    </div>
+    <div id="orderView" hidden></div>
+    <div id="listView">
     <div class="hist-head">
       <strong id="histCount">0 件</strong>
       <span>
@@ -326,6 +377,7 @@ a.btn{text-decoration:none;display:inline-block}
       </span>
     </div>
     <ul class="hist" id="hist"></ul>
+    </div>
   </section>
 </main>
 
@@ -721,7 +773,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
   document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected", x===b));
   ["list","trade","scan","hist"].forEach(t=>$("#p-"+t).hidden = t!==ui.tab);
   if (ui.tab!=="scan") stopCam();
-  if (ui.tab==="hist") renderHist();
+  if (ui.tab==="hist"){ renderHist(); renderOrder(); }
   if (ui.tab==="trade") renderTrade();
   closeSuggest();
 }));
@@ -800,8 +852,24 @@ function guessCard(raw){
  * - 同じコードが枠に映り続けている間は数えない。いったん枠から外れて（0.8秒）また映ったら次の1枚として数える
  */
 const POP_MS = 500, GONE_MS = 800;
-let present = {raw:null, lastSeen:0}, pauseUntil = 0, popTimer = null, audioCtx = null;
+let presentMap = {}, pauseUntil = 0, popTimer = null, audioCtx = null;
 const sessionScans = [];
+const SIDE_LABEL = {L:"左", R:"右"};
+// 左右の判定: カメラ画面の左半分で読んだら「左」、右半分なら「右」。毎回ボタンを押さずに連続で記録できる
+let sideMode = "pos", curPlace = "";
+try{ sideMode = localStorage.getItem(LS_KEY+":sideMode")||"pos"; curPlace = localStorage.getItem(LS_KEY+":place")||""; }catch(e){}
+function renderSidePick(){
+  document.querySelectorAll("[data-smode]").forEach(b=>b.setAttribute("aria-checked", b.dataset.smode===sideMode));
+  const camOn = !!stream;
+  $("#zones").hidden = !(camOn && sideMode==="pos"); $("#frame").hidden = !(camOn && sideMode!=="pos");
+  $("#placeIn").hidden = sideMode!=="pos";
+}
+document.querySelectorAll("[data-smode]").forEach(b=>b.addEventListener("click",()=>{
+  sideMode=b.dataset.smode; try{localStorage.setItem(LS_KEY+":sideMode",sideMode);}catch(e){} renderSidePick();
+}));
+$("#placeIn").value = curPlace;
+$("#placeIn").addEventListener("change", e=>{ curPlace=e.target.value.trim(); try{localStorage.setItem(LS_KEY+":place",curPlace);}catch(_){ } });
+renderSidePick();
 
 function beep(ok){
   try{
@@ -831,20 +899,24 @@ function undoScan(entry){
   const i = scans.indexOf(entry); if (i>-1) scans.splice(i,1);
   save(); renderAll(); renderRecent(); toast(entry.card?`${entry.card} の＋1を取り消しました`:"取り消しました");
 }
-function onDecoded(raw, fromFile){
+function onDecoded(raw, fromFile, cx){
   const now = Date.now();
+  const side = (sideMode==="pos" && typeof cx==="number") ? (cx<0.5 ? "L" : "R") : "";
+  const key = raw+"|"+side;
   if (!fromFile){
     if (now < pauseUntil) return;
-    if (raw===present.raw && now-present.lastSeen < GONE_MS){ present.lastSeen=now; return; }
+    if (presentMap[key] && now-presentMap[key] < GONE_MS){ presentMap[key]=now; return; }
   }
   const card = guessCard(raw);
   const entry = {t:now, raw, card};
+  if (side) entry.side = side;
+  if (curPlace) entry.place = curPlace;
   scans.push(entry);
   if (card) addOne(entry); else save();
   sessionScans.unshift(entry); if (sessionScans.length>8) sessionScans.pop();
-  present = {raw, lastSeen: now+POP_MS}; pauseUntil = now+POP_MS;
+  presentMap[key] = now+POP_MS; pauseUntil = now+POP_MS;
   if (card){ const c=cardByNo(card), n=displayName(c);
-    showPop(`<b>${esc(card)}</b>${n?`<span>${esc(n)}</span>`:""}<em>＋1　計${st(card).own}枚</em>`, true); beep(true); }
+    showPop(`<b>${entry.side?`<i class="sd">${SIDE_LABEL[entry.side]}</i>`:""}${esc(card)}</b>${n?`<span>${esc(n)}</span>`:""}<em>＋1　計${st(card).own}枚</em>`, true); beep(true); }
   else { showPop(`<b>未登録のコード</b><span>下でカードを選んでね</span>`, false); beep(false); }
   renderAll(); renderRecent();
 }
@@ -856,11 +928,20 @@ function renderRecent(){
   $("#scanResult").innerHTML = list.length ? `<div class="recent-h">今回読み込んだカード</div><ul class="recent">` + list.map((e,i)=>{
     const c = e.card && cardByNo(e.card), n = c ? displayName(c) : "";
     return `<li data-ri="${sessionScans.indexOf(e)}">
-      <div class="rmain">${c ? `<b>${esc(e.card)}</b> ${n?esc(n):""}<span class="plus">＋1</span>`
+      <div class="rmain">${c ? `<b>${esc(e.card)}</b><span class="rname">${n?esc(n):""}</span>`
         : `<select data-link aria-label="このコードのカード">${cardOptions("")}</select>`}</div>
-      <button class="undo" data-undo>取り消し</button></li>`; }).join("") + `</ul>` : "";
+      <div class="lr" role="group" aria-label="排出口">
+        <button data-lr="L" aria-pressed="${e.side==="L"}">左</button><button data-lr="R" aria-pressed="${e.side==="R"}">右</button>
+      </div>
+      <button class="undo" data-undo aria-label="取り消し">取消</button></li>`; }).join("") + `</ul>` : "";
 }
 $("#scanResult").addEventListener("click", e=>{
+  const lr=e.target.closest("[data-lr]");
+  if (lr){ // 左右をあとから付ける・直す（同じボタンをもう一度押すと解除）
+    const entry=sessionScans[+lr.closest("li").dataset.ri];
+    if (entry.side===lr.dataset.lr) delete entry.side; else entry.side=lr.dataset.lr;
+    save(); renderRecent(); renderHist(); renderOrder(); return;
+  }
   const b=e.target.closest("[data-undo]"); if(!b) return;
   undoScan(sessionScans[+b.closest("li").dataset.ri]);
 });
@@ -876,18 +957,22 @@ function linkScan(entry, no){
   scans.forEach(s=>{ if (s.raw===entry.raw) s.card=no; });
   save(); renderHist();
 }
-async function detectFrame(source, w, h){
-  if (detector){ try{ const r = await detector.detect(source); if (r.length) return r[0].rawValue; }catch(e){} }
+// 見つかったコードを [{raw, cx}] で返す（cx = 横方向の中心位置 0〜1）
+async function detectAll(source, w, h, srcW){
+  if (detector){ try{ const r = await detector.detect(source);
+    if (r.length) return r.map(x=>({raw:x.rawValue, cx:(x.boundingBox.x + x.boundingBox.width/2)/(srcW||w)})); }catch(e){} }
   if (window.jsQR){ cv.width=w; cv.height=h; ctx.drawImage(source,0,0,w,h); const d=ctx.getImageData(0,0,w,h);
-    const r=jsQR(d.data,w,h,{inversionAttempts:"attemptBoth"}); if (r) return r.data; }
-  return null;
+    const r=jsQR(d.data,w,h,{inversionAttempts:"attemptBoth"});
+    if (r){ const L=r.location; return [{raw:r.data, cx:(L.topLeftCorner.x+L.topRightCorner.x+L.bottomLeftCorner.x+L.bottomRightCorner.x)/4/w}]; } }
+  return [];
 }
+async function detectFrame(source, w, h){ const a = await detectAll(source, w, h); return a.length ? a[0].raw : null; }
 async function loop(){
   if (!stream) return;
   if (video.readyState>=2){
     const w=video.videoWidth, h=video.videoHeight, s=Math.min(1, 720/Math.max(w,h));
-    const raw = await detectFrame(video, Math.round(w*s), Math.round(h*s));
-    if (raw) onDecoded(raw);
+    const hits = await detectAll(video, Math.round(w*s), Math.round(h*s), w);
+    hits.forEach(x=>onDecoded(x.raw, false, x.cx));
   }
   rafId = setTimeout(()=>requestAnimationFrame(loop), 90);
 }
@@ -896,13 +981,13 @@ async function startCam(){
   if (!navigator.mediaDevices?.getUserMedia){ toast("このブラウザではカメラを使えません。写真から読んでね"); return; }
   try{
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
-    video.srcObject=stream; video.hidden=false; $("#frame").hidden=false; $("#scanIdle").hidden=true;
+    video.srcObject=stream; video.hidden=false; $("#scanIdle").hidden=true; renderSidePick();
     await video.play(); $("#camBtn").textContent="カメラを止める"; loop();
   }catch(e){ stream=null; toast("カメラを起動できませんでした。「写真から読む」を使ってね"); }
 }
 function stopCam(){
   if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  clearTimeout(rafId); video.hidden=true; $("#frame").hidden=true; $("#scanIdle").hidden=false;
+  clearTimeout(rafId); video.hidden=true; $("#scanIdle").hidden=false; renderSidePick();
   $("#camBtn").textContent="カメラを起動";
 }
 $("#camBtn").addEventListener("click", ()=> stream ? stopCam() : startCam());
@@ -910,8 +995,8 @@ $("#qrFile").addEventListener("change", async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   const img=new Image(); const url=URL.createObjectURL(f);
   img.onload = async ()=>{ const s=Math.min(1,1400/Math.max(img.width,img.height));
-    const raw = await detectFrame(img, Math.round(img.width*s), Math.round(img.height*s)); URL.revokeObjectURL(url);
-    if (raw){ onDecoded(raw, true); } else toast("2次元コードが見つかりませんでした"); };
+    const hits = await detectAll(img, Math.round(img.width*s), Math.round(img.height*s), img.width); URL.revokeObjectURL(url);
+    if (hits.length){ hits.forEach(x=>onDecoded(x.raw, true, x.cx)); } else toast("2次元コードが見つかりませんでした"); };
   img.src=url;
 });
 
@@ -920,19 +1005,47 @@ function renderHist(){
   $("#histCount").textContent = `${scans.length} 件`;
   const items = scans.map((s,i)=>({s,i})).reverse().slice(0,300);
   $("#hist").innerHTML = items.length ? items.map(({s,i})=>`<li>
-      <div class="main"><div class="t">${fmtTime(s.t)}</div><div class="rawline">${esc(s.raw)}</div></div>
+      <div class="main"><div class="t">${fmtTime(s.t)}${s.place?`　${esc(s.place)}`:""}</div><div class="rawline">${esc(s.raw)}</div></div>
+      <select data-side-i="${i}" class="sidesel" aria-label="排出口"><option value="">−</option><option value="L" ${s.side==="L"?"selected":""}>左</option><option value="R" ${s.side==="R"?"selected":""}>右</option></select>
       <select data-i="${i}" aria-label="カード">${cardOptions(s.card)}</select>
     </li>`).join("") : `<li style="justify-content:center;color:var(--muted)">まだ読み込み履歴はありません。QR読み込みタブから始めよう</li>`;
 }
-$("#hist").addEventListener("change", e=>{ const sel=e.target.closest("select[data-i]"); if(!sel) return; linkScan(scans[+sel.dataset.i], sel.value); });
+$("#hist").addEventListener("change", e=>{
+  const ss=e.target.closest("select[data-side-i]");
+  if (ss){ const s=scans[+ss.dataset.sideI]; if (ss.value) s.side=ss.value; else delete s.side; save(); renderOrder(); return; }
+  const sel=e.target.closest("select[data-i]"); if(!sel) return; linkScan(scans[+sel.dataset.i], sel.value); renderOrder();
+});
+/* ---------- 配列（排出口ごとの排出順） ---------- */
+let histMode = "list";
+document.querySelectorAll("[data-hmode]").forEach(b=>b.addEventListener("click",()=>{
+  histMode=b.dataset.hmode;
+  document.querySelectorAll("[data-hmode]").forEach(x=>x.setAttribute("aria-selected", x===b));
+  $("#listView").hidden = histMode!=="list"; $("#orderView").hidden = histMode!=="order";
+  if (histMode==="order") renderOrder();
+}));
+function dayKey(t){ const d=new Date(t), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}`; }
+function renderOrder(){
+  const el=$("#orderView"); if (!el) return;
+  const withSide = scans.filter(s=>s.side);
+  if (!withSide.length){ el.innerHTML = `<div class="empty">まだ配列の記録はありません。<br>QRタブで「左」か「右」を選んでから読み込むと、ここに排出順で並びます</div>`; return; }
+  const groups = new Map();
+  withSide.forEach(s=>{ const k=dayKey(s.t)+"\u0000"+(s.place||""); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(s); });
+  const keys=[...groups.keys()].sort((a,b)=>groups.get(b)[0].t-groups.get(a)[0].t);
+  const col = (list)=> list.length ? `<ol class="ocol">${list.map(s=>{ const c=s.card&&cardByNo(s.card), n=c?displayName(c):"";
+      return `<li><span class="ono">${c?esc(c.no):"未判別"}</span>${c?`<span class="rar ${c.rar}">${c.rar}</span>`:""}<span class="onm">${esc(n)}</span></li>`; }).join("")}</ol>` : `<p class="onone">記録なし</p>`;
+  el.innerHTML = keys.map(k=>{ const [day,place]=k.split("\u0000"), list=groups.get(k).slice().sort((a,b)=>a.t-b.t);
+    const L=list.filter(s=>s.side==="L"), R=list.filter(s=>s.side==="R");
+    return `<section class="ogroup"><h3>${esc(day)}${place?`<small>${esc(place)}</small>`:""}</h3>
+      <div class="ocols"><div><div class="oh">◀ 左 <b>${L.length}</b></div>${col(L)}</div><div><div class="oh">右 ▶ <b>${R.length}</b></div>${col(R)}</div></div></section>`; }).join("");
+}
 $("#clearHist").addEventListener("click", ()=>{ if(!scans.length) return; if(!confirm("読み込み履歴をすべて消去しますか？")) return; scans=[]; save(); renderHist(); toast("履歴を消去しました"); });
 
 function csvCell(v){ v=String(v??""); return /[",\r\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; }
 $("#csvBtn").addEventListener("click", async ()=>{
   if (!scans.length){ toast("履歴がまだありません"); return; }
-  const rows = [["読み込み日時","カード番号","レアリティ","カード名","所持枚数","譲れる枚数","QR内容"]];
+  const rows = [["読み込み日時","排出口","店舗・筐体","カード番号","レアリティ","カード名","所持枚数","譲れる枚数","QR内容"]];
   scans.forEach(s=>{ const c=s.card&&cardByNo(s.card); const x=c?st(c.no):{};
-    rows.push([fmtTime(s.t), s.card||"", c?c.rar:"", c?displayName(c):"", c?x.own:"", c?x.giveCount:"", s.raw]); });
+    rows.push([fmtTime(s.t), s.side?SIDE_LABEL[s.side]:"", s.place||"", s.card||"", c?c.rar:"", c?displayName(c):"", c?x.own:"", c?x.giveCount:"", s.raw]); });
   const csv = "\uFEFF" + rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
   const d=new Date(), p=n=>String(n).padStart(2,"0");
   const filename = `aikatsu_qr_history_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}.csv`;
@@ -955,7 +1068,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-04 r9";
+const APP_VERSION = "2026-10-04 r12";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
