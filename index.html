@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&family=Mochiy+Pop+One&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="cards.js"></script>
+<script src="config.js"></script>
 <style>
 :root{
   --bg:#FFF4FA; --bg2:#F1ECFF; --surface:#FFFFFF; --ink:#4A2357; --muted:#9A7BA6; --line:#F2DDEB;
@@ -185,6 +186,29 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .tcount{position:absolute;right:6px;bottom:6px;background:var(--mint);color:#fff;font-weight:800;font-size:14px;border-radius:999px;padding:1px 9px;box-shadow:0 2px 6px rgba(0,0,0,.18)}
 .tname{font-size:12.5px;font-weight:800;margin-top:6px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tno{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:1px}
+.ap{font-size:11px;font-weight:800;color:var(--muted);margin-left:auto}
+.ap::before{content:"Ap";font-size:9px;margin-right:1px;color:var(--lav)}
+.rt-r{display:flex;align-items:center;gap:10px}
+.calcbtn{border:0;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;padding:5px 11px;font-weight:800;font-size:12px;color:var(--lav)}
+.calcbtn[aria-pressed="true"]{background:linear-gradient(135deg,var(--lav),#C7B3FF);color:#fff}
+.card.sel{box-shadow:0 0 0 3px var(--lav),var(--shadow)}
+.sel-badge{position:absolute;top:8px;left:8px;z-index:2;background:var(--lav);color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px}
+body.calc-on main{padding-bottom:240px}
+.calcbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -8px 28px rgba(74,35,87,.18);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));max-width:860px;margin:0 auto}
+.calcbar[hidden]{display:none}
+.ctop{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ctop small{display:block;font-size:11px;color:var(--muted);font-weight:800}
+.ctop strong{font-family:"Mochiy Pop One","M PLUS Rounded 1c",sans-serif;font-weight:400;font-size:24px;color:var(--lav);line-height:1.1}
+.ctop span{display:flex;gap:6px}
+.cslots{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.cslot{background:var(--bg);border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:6px;min-width:0;font-size:12px}
+.cslot .cl{flex:none;font-size:10px;font-weight:800;color:var(--muted)}
+.cslot .cn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.cslot .cn.none{color:var(--line)}
+.cslot .cn.same{color:var(--muted);font-weight:700}
+.cslot b{flex:none;color:var(--lav)}
+.chint{margin:8px 0 0;font-size:12px;color:var(--muted)}
 .empty{text-align:center;color:var(--muted);padding:40px 10px;font-weight:700}
 .addrow{display:flex;justify-content:center;margin-top:18px}
 
@@ -268,6 +292,17 @@ a.btn{text-decoration:none;display:inline-block}
 .ocol .rar{font-size:9.5px;padding:0 5px}
 .onm{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .onone{font-size:12px;color:var(--muted);margin:4px 0 8px}
+.howto{background:var(--surface);box-shadow:var(--shadow);border-radius:18px;padding:0 14px;margin:6px 0 12px;font-size:13px;line-height:1.6}
+.howto summary{cursor:pointer;list-style:none;padding:11px 0;font-weight:800;color:var(--pink-deep);display:flex;align-items:center;gap:8px}
+.howto summary::-webkit-details-marker{display:none}
+.howto summary::before{content:"?";display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--pink-soft);color:var(--pink-deep);font-size:12px}
+.howto summary::after{content:"開く";margin-left:auto;font-size:11px;color:var(--muted);font-weight:700}
+.howto[open] summary::after{content:"閉じる"}
+.howto ol,.howto ul{margin:0 0 10px;padding-left:1.4em}
+.howto li{margin:3px 0}
+.howto b{color:var(--ink)}
+.howto h4{margin:8px 0 4px;font-size:13px;color:var(--lav)}
+.howto[open]{padding-bottom:4px}
 .scan-actions{display:flex;gap:8px;justify-content:center;margin:14px 0;flex-wrap:wrap}
 .result{background:var(--surface);box-shadow:var(--shadow);border-radius:20px;padding:14px;margin-top:8px}
 .result .raw{font-size:12px;color:var(--muted);word-break:break-all;margin-top:4px}
@@ -323,7 +358,7 @@ a.btn{text-decoration:none;display:inline-block}
       <button class="fbtn" id="filterBtn" aria-label="絞り込み"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>絞り込み<span class="badge" id="fCount" hidden></span></button>
     </div>
     <div class="active" id="activeFilters"></div>
-    <div class="row-tools"><span id="hitCount"></span><span id="sortLabel"></span></div>
+    <div class="row-tools"><span id="hitCount"></span><span class="rt-r"><button class="calcbtn" id="calcBtn" aria-pressed="false">✦ コーデAp計算</button><span id="sortLabel"></span></span></div>
     <div class="grid" id="grid"></div>
     <div class="addrow"><button class="btn small ghost" id="addCustom">＋ プロモなどカードを追加</button></div>
   </section>
@@ -339,18 +374,29 @@ a.btn{text-decoration:none;display:inline-block}
 
   <!-- SCAN -->
   <section class="panel" id="p-scan" hidden>
+    <details class="howto" data-howto="scan">
+      <summary>QR読み込みの使い方</summary>
+      <ol>
+        <li><b>「カメラを起動」</b>を押して、カード裏のQRをかざします。</li>
+        <li>読めると<b>自動で所持が＋1</b>。0.5秒後にはもう次のカードを読めます。</li>
+        <li>同じカードを何枚も読むときは、<b>1枚ずつ画面の外に出してから</b>かざしてください。</li>
+        <li>間違えて読んだら、下の一覧の<b>「取消」</b>で元に戻せます。</li>
+        <li>「未登録のコード」と出たら、下の一覧でどのカードか選んでください。次からは自動で数えます。</li>
+      </ol>
+      <h4>配列を記録するとき</h4>
+      <ul>
+        <li>上の欄に店舗・筐体名を入れておきます（入れなくてもOK）。</li>
+        <li>カードは普通に続けて読み込み、下の一覧で各カードの<b>「左」「右」</b>を押すと記録されます。もう一度押すと解除です。</li>
+        <li>記録した左右は、<b>履歴タブ</b>の各行とCSVで確認できます。</li>
+      </ul>
+    </details>
     <div class="sidebar">
-      <div class="sidepick" role="radiogroup" aria-label="排出口（左右）の記録">
-        <button data-smode="pos" role="radio">左右を記録する</button>
-        <button data-smode="off" role="radio">記録しない</button>
-      </div>
       <input id="placeIn" type="text" placeholder="店舗・筐体（例: 駅前ゲーセン 1号機）" autocomplete="off" aria-label="店舗・筐体">
     </div>
     <div class="scanbox" id="scanbox">
       <div class="idle" id="scanIdle">カメラを起動して、カード裏の2次元コードをかざしてね</div>
       <video id="video" playsinline muted hidden></video>
       <div class="frame" id="frame" hidden></div>
-      <div class="zones" id="zones" hidden><span>◀ 左から出たカード</span><span>右から出たカード ▶</span></div>
       <div class="pop" id="scanPop" aria-live="polite"></div>
     </div>
     <div class="scan-actions">
@@ -358,16 +404,18 @@ a.btn{text-decoration:none;display:inline-block}
       <label class="btn">写真から読む<input type="file" accept="image/*" id="qrFile" hidden></label>
     </div>
     <div id="scanResult"></div>
-    <p class="note">カードが判別できると自動で所持が＋1されます。同じカードを続けて読むときは、1枚ごとにいったん枠の外に出してね。判別できないコードは、一度カードを選んで紐付けると次回から自動で数えます。</p>
   </section>
 
   <!-- HISTORY -->
   <section class="panel" id="p-hist" hidden>
-    <div class="seg hseg" role="tablist" aria-label="履歴の表示切り替え">
-      <button data-hmode="list" aria-selected="true">読み込み履歴</button>
-      <button data-hmode="order" aria-selected="false">配列</button>
-    </div>
-    <div id="orderView" hidden></div>
+    <details class="howto" data-howto="hist">
+      <summary>履歴の使い方</summary>
+      <ul>
+        <li>QRで読んだカードが新しい順に並びます。左右やカードが違っていたら、各行のプルダウンで直せます。</li>
+        <li><b>CSVで保存</b>：履歴をExcelなどで開けるファイルに書き出します。</li>
+        <li><b>全消去</b>：履歴だけを消します。所持枚数は減りません。</li>
+      </ul>
+    </details>
     <div id="listView">
     <div class="hist-head">
       <strong id="histCount">0 件</strong>
@@ -384,6 +432,7 @@ a.btn{text-decoration:none;display:inline-block}
 <div class="sheet-bg" id="sheetBg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" id="sheet"></div>
 </div>
+<div class="calcbar" id="calcBar" hidden></div>
 <div class="toast" id="toast"></div>
 <canvas id="cv" hidden></canvas>
 <input type="file" accept="image/*" id="tilePhoto" hidden>
@@ -404,11 +453,11 @@ MASTER.sets.forEach(s=>(s.cards||[]).forEach(row=>{
   const no = String(row[0]).normalize("NFKC").trim().toUpperCase();
   if (BASE_NOS.has(no)) return;
   const r = RAR_ORDER[String(row[1]).toUpperCase()]!==undefined ? String(row[1]).toUpperCase() : "N";
-  BASE.push({no, rar:r, set:String(s.name||s.id), setId:String(s.id), mname:row[2]?String(row[2]):"", cat:row[3]?String(row[3]):"", idol:row[4]?String(row[4]):"", master:true});
+  BASE.push({no, rar:r, set:String(s.name||s.id), setId:String(s.id), mname:row[2]?String(row[2]):"", cat:row[3]?String(row[3]):"", idol:row[4]?String(row[4]):"", mtype:TYPES.includes(row[5])?row[5]:"", ap:Number(row[6])||0, master:true});
   BASE_NOS.add(no);
 }));
 // 公式カードリストの画像URLは「番号_レアリティ」の規則（E1, E2… の弾のみ）
-const officialUrl = c => (c.master && /^E\d+$/.test(c.setId)) ? `https://dcd.aikatsu.com/encore/images/cardlist/card/${c.no}_${c.rar}.webp` : null;
+const officialUrl = c => (c.master && /^(E\d+|EP)$/.test(c.setId)) ? `https://dcd.aikatsu.com/encore/images/cardlist/card/${c.no}_${c.rar}.webp` : null;
 
 /* ---------- state ---------- */
 const LS_KEY = "aikatsu-encore-v1";
@@ -432,6 +481,7 @@ function allCards(){
   return out;
 }
 const displayName = c => st(c.no).name || c.mname || "";
+const typeOf = c => st(c.no).type || c.mtype || "";
 // giveCount（譲れる枚数）は所持枚数とは別に管理。旧データの「譲:ON」は読み込み時に1枚として扱う（保存データは書き換えない）
 const st = no => {
   const s = store.cards[no];
@@ -536,7 +586,7 @@ function matches(c){
   if (ui.set!=="all" && c.setId!==ui.set && !(ui.set==="custom" && c.setId==="orphan")) return false;
   if (ui.cat!=="all" && c.cat!==ui.cat) return false;
   if (ui.idol!=="all" && c.idol!==ui.idol) return false;
-  if (ui.type!=="all"){ if (ui.type==="none" ? s.type : s.type!==ui.type) return false; }
+  if (ui.type!=="all"){ const ty=typeOf(c); if (ui.type==="none" ? ty : ty!==ui.type) return false; }
   return matchesText(c);
 }
 function matchesText(c){
@@ -567,7 +617,7 @@ function filterDefs(){
     {key:"status", title:"持っているか", opts:[["all","すべて"],["own","所持",cnt((c,s)=>s.own>0)],["missing","未所持",cnt((c,s)=>s.own<1)],
       ["want","求",cnt((c,s)=>s.want)],["give","譲",cnt((c,s)=>s.giveCount>0)],["dup","ダブり",cnt((c,s)=>s.own>1)]]},
     {key:"rar", title:"レアリティ", opts:[["all","すべて"], ...["ER","PR","R","N"].map(r=>[r,r,cnt(c=>c.rar===r)])]},
-    {key:"type", title:"タイプ", opts:[["all","すべて"], ...TYPES.map(t=>[t,t,cnt((c,s)=>s.type===t)]), ["none","未設定",cnt((c,s)=>!s.type)]]},
+    {key:"type", title:"タイプ", opts:[["all","すべて"], ...TYPES.map(t=>[t,t,cnt(c=>typeOf(c)===t)]), ["none","未設定",cnt(c=>!typeOf(c))]]},
     {key:"idol", title:"アイドル", opts:[["all","すべて"], ...[...new Set(BASE.map(c=>c.idol).filter(Boolean))].map(x=>[x,x,cnt(c=>c.idol===x)])]},
     {key:"cat", title:"カテゴリ", opts:[["all","すべて"], ...["トップス","ボトムス","シューズ","アクセサリー","トップス&ボトムス","フルコーデ"].filter(x=>BASE.some(c=>c.cat===x)).map(x=>[x,x,cnt(c=>c.cat===x)])]},
     {key:"set", title:"弾", opts:[["all","すべて"], ...SETS.map(x=>[x.id,x.name,cnt(c=>c.setId===x.id)]), ...extra]},
@@ -617,14 +667,17 @@ $("#filterBtn").addEventListener("click", openFilter);
 /* ---------- render: grid ---------- */
 function cardHtml(c){
   const s = st(c.no);
-  const dot = s.type ? `<span class="typedot" style="background:${TYPE_COLOR[s.type]}" title="${s.type}"></span>` : "";
-  return `<article class="card ${s.own>0?"has":""} ${ui.thumbs?"showthumb":""}" data-no="${esc(c.no)}">
+  const ty = typeOf(c);
+  const dot = ty ? `<span class="typedot" style="background:${TYPE_COLOR[ty]}" title="${ty}"></span>` : "";
+  const sel = calc.on && calc.sel.includes(c.no);
+  return `<article class="card ${s.own>0?"has":""} ${ui.thumbs?"showthumb":""} ${sel?"sel":""}" data-no="${esc(c.no)}">
+    ${sel?`<span class="sel-badge">✓ コーデ</span>`:""}
     ${s.own>0 && ui.thumbs ? `<span class="own-badge">♡ 所持</span>` : ""}
     <button class="thumb" data-act="thumb" data-thumb="${esc(c.no)}" aria-label="${esc(c.no)}の写真">
       <span class="ph"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span><span class="cam">📷 写真を登録</span></span>
     </button>
     <button class="face" data-act="open" aria-label="${esc(label(c))}の詳細">
-      <div class="num">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span> ${dot}</div>
+      <div class="num">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span> ${dot}${c.ap?`<span class="ap">${c.ap}</span>`:""}</div>
       <div class="name ${displayName(c)?"set":""}">${displayName(c)?hl(displayName(c)):"名前を登録 ✎"}</div>
     </button>
     <div class="ctrl">
@@ -669,7 +722,7 @@ function renderTrade(){
   const give = allCards().filter(c=>st(c.no).giveCount>0).sort(byNo);
   const want = allCards().filter(c=>st(c.no).want).sort(byNo);
   $("#giveN").textContent = give.length; $("#wantN").textContent = want.length;
-  document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===tradeMode));
+  document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===tradeMode));
   const list = tradeMode==="give" ? give : want;
   $("#tradeGrid").innerHTML = list.length ? list.map(c=>{ const s=st(c.no), n=displayName(c);
     return `<div class="titem"><div class="tthumb" data-tthumb="${esc(c.no)}"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span>
@@ -679,7 +732,7 @@ function renderTrade(){
     : `<div class="empty" style="grid-column:1/-1">${tradeMode==="give"?"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます":"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます"}</div>`;
   document.querySelectorAll("[data-tthumb]").forEach(async el=>{ const r=await imgSrc(el.dataset.tthumb); if(r){ el.insertAdjacentHTML("afterbegin",imgTag(r)); el.classList.add("has"); } });
 }
-document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
+document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
 function renderAll(){ renderHeader(); renderChips(); renderGrid(); renderHist(); renderTrade(); }
 function refreshCard(no){
   const el = document.querySelector(`.card[data-no="${CSS.escape(no)}"]`); const c = cardByNo(no);
@@ -741,10 +794,52 @@ sugEl.addEventListener("click", e=>{
 });
 document.addEventListener("click", e=>{ if (!e.target.closest(".sbox")) closeSuggest(); });
 qEl.addEventListener("blur", ()=>setTimeout(closeSuggest,150));
+/* ---------- コーデAp計算 ---------- */
+// 部位ごとに1枚。ワンピ（トップス&ボトムス）やフルコーデは、重なる部位のカードと入れ替わる
+const SLOTS = [["T","トップス"],["B","ボトムス"],["S","シューズ"],["A","アクセサリー"]];
+const CAT_SLOTS = {"トップス":["T"],"ボトムス":["B"],"シューズ":["S"],"アクセサリー":["A"],"トップス&ボトムス":["T","B"],"フルコーデ":["T","B","S","A"]};
+const calc = {on:false, sel:[]};
+const slotsOf = c => CAT_SLOTS[c.cat] || [];
+function toggleCalc(no){
+  const c = cardByNo(no); if (!c) return;
+  if (calc.sel.includes(no)) calc.sel = calc.sel.filter(x=>x!==no);
+  else {
+    const sl = slotsOf(c);
+    if (sl.length) calc.sel = calc.sel.filter(x=>{ const o=cardByNo(x); return !o || !slotsOf(o).some(z=>sl.includes(z)); });
+    calc.sel.push(no);
+  }
+  renderCalc(); renderGrid();
+}
+function renderCalc(){
+  const bar=$("#calcBar"); $("#calcBtn").setAttribute("aria-pressed", calc.on);
+  document.body.classList.toggle("calc-on", calc.on);
+  if (!calc.on){ bar.hidden=true; return; }
+  const cards = calc.sel.map(cardByNo).filter(Boolean);
+  const total = cards.reduce((a,c)=>a+(c.ap||0),0);
+  const shown = new Set();
+  const rows = SLOTS.map(([k,l])=>{ const c=cards.find(x=>slotsOf(x).includes(k));
+    if (c && shown.has(c.no)) return `<div class="cslot on"><span class="cl">${l}</span><span class="cn same">↑ 同じカード</span></div>`;
+    if (c) shown.add(c.no);
+    return `<div class="cslot ${c?"on":""}"><span class="cl">${l}</span>${c?`<span class="cn">${esc(displayName(c)||c.no)}</span><b>${c.ap||"−"}</b>`:`<span class="cn none">未選択</span>`}</div>`; });
+  const other = cards.filter(c=>!slotsOf(c).length);
+  bar.innerHTML = `<div class="ctop"><div><small>コーデ合計</small><strong>Ap ${total.toLocaleString()}</strong></div>
+      <span><button class="btn small" data-calc="clear">クリア</button><button class="btn small primary" data-calc="close">終了</button></span></div>
+    <div class="cslots">${rows.join("")}${other.map(c=>`<div class="cslot on"><span class="cl">その他</span><span class="cn">${esc(displayName(c)||c.no)}</span><b>${c.ap||"−"}</b></div>`).join("")}</div>
+    ${cards.length?"":`<p class="chint">カードをタップするとコーデに入ります。同じ部位は入れ替わります</p>`}`;
+  bar.hidden=false;
+}
+$("#calcBtn").addEventListener("click", ()=>{ calc.on=!calc.on; renderCalc(); renderGrid(); });
+$("#calcBar").addEventListener("click", e=>{
+  const b=e.target.closest("[data-calc]"); if(!b) return;
+  if (b.dataset.calc==="clear") calc.sel=[]; else { calc.on=false; }
+  renderCalc(); renderGrid();
+});
+
 document.addEventListener("click", e=>{
   const btn = e.target.closest("[data-act]"); if (!btn) return;
   const card = btn.closest(".card"); if (!card) return;
   const no = card.dataset.no, s = st(no);
+  if (calc.on && (btn.dataset.act==="open" || btn.dataset.act==="thumb")){ toggleCalc(no); return; }
   switch(btn.dataset.act){
     case "inc": patch(no,{own:s.own+1}); break;
     case "dec": { const own=Math.max(0,s.own-1), g=Math.min(s.giveCount, own); patch(no,{own, giveCount:g, give:g>0}); break; }
@@ -773,6 +868,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
   document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected", x===b));
   ["list","trade","scan","hist"].forEach(t=>$("#p-"+t).hidden = t!==ui.tab);
   if (ui.tab!=="scan") stopCam();
+  if (ui.tab!=="list" && calc.on){ calc.on=false; renderCalc(); }
   if (ui.tab==="hist"){ renderHist(); renderOrder(); }
   if (ui.tab==="trade") renderTrade();
   closeSuggest();
@@ -790,7 +886,7 @@ async function openDetail(no){
     <label class="f" for="dName">カード名</label>
     <input type="text" id="dName" value="${esc(s.name)}" placeholder="${c.mname?esc(c.mname):"例: ピンクブロッサムトップス"}">
     <label class="f" for="dType">タイプ</label>
-    <select id="dType"><option value="">未設定</option>${TYPES.map(t=>`<option ${s.type===t?"selected":""}>${t}</option>`).join("")}</select>
+    <select id="dType"><option value="">${c.mtype?`カードの通り（${c.mtype}）`:"未設定"}</option>${TYPES.map(t=>`<option ${s.type===t?"selected":""}>${t}</option>`).join("")}</select>
     <label class="f" for="dMemo">メモ（着用アイドル・コーデ名など。検索対象になります）</label>
     <textarea id="dMemo">${esc(s.memo)}</textarea>
     <label class="f">カード写真</label>
@@ -855,18 +951,9 @@ const POP_MS = 500, GONE_MS = 800;
 let presentMap = {}, pauseUntil = 0, popTimer = null, audioCtx = null;
 const sessionScans = [];
 const SIDE_LABEL = {L:"左", R:"右"};
-// 左右の判定: カメラ画面の左半分で読んだら「左」、右半分なら「右」。毎回ボタンを押さずに連続で記録できる
-let sideMode = "pos", curPlace = "";
-try{ sideMode = localStorage.getItem(LS_KEY+":sideMode")||"pos"; curPlace = localStorage.getItem(LS_KEY+":place")||""; }catch(e){}
-function renderSidePick(){
-  document.querySelectorAll("[data-smode]").forEach(b=>b.setAttribute("aria-checked", b.dataset.smode===sideMode));
-  const camOn = !!stream;
-  $("#zones").hidden = !(camOn && sideMode==="pos"); $("#frame").hidden = !(camOn && sideMode!=="pos");
-  $("#placeIn").hidden = sideMode!=="pos";
-}
-document.querySelectorAll("[data-smode]").forEach(b=>b.addEventListener("click",()=>{
-  sideMode=b.dataset.smode; try{localStorage.setItem(LS_KEY+":sideMode",sideMode);}catch(e){} renderSidePick();
-}));
+let curPlace = "";
+try{ curPlace = localStorage.getItem(LS_KEY+":place")||""; }catch(e){}
+function renderSidePick(){ const camOn=!!stream; $("#frame").hidden=!camOn; }
 $("#placeIn").value = curPlace;
 $("#placeIn").addEventListener("change", e=>{ curPlace=e.target.value.trim(); try{localStorage.setItem(LS_KEY+":place",curPlace);}catch(_){ } });
 renderSidePick();
@@ -901,15 +988,13 @@ function undoScan(entry){
 }
 function onDecoded(raw, fromFile, cx){
   const now = Date.now();
-  const side = (sideMode==="pos" && typeof cx==="number") ? (cx<0.5 ? "L" : "R") : "";
-  const key = raw+"|"+side;
+  const key = raw;
   if (!fromFile){
     if (now < pauseUntil) return;
     if (presentMap[key] && now-presentMap[key] < GONE_MS){ presentMap[key]=now; return; }
   }
   const card = guessCard(raw);
   const entry = {t:now, raw, card};
-  if (side) entry.side = side;
   if (curPlace) entry.place = curPlace;
   scans.push(entry);
   if (card) addOne(entry); else save();
@@ -1005,8 +1090,8 @@ function renderHist(){
   $("#histCount").textContent = `${scans.length} 件`;
   const items = scans.map((s,i)=>({s,i})).reverse().slice(0,300);
   $("#hist").innerHTML = items.length ? items.map(({s,i})=>`<li>
-      <div class="main"><div class="t">${fmtTime(s.t)}${s.place?`　${esc(s.place)}`:""}</div><div class="rawline">${esc(s.raw)}</div></div>
-      <select data-side-i="${i}" class="sidesel" aria-label="排出口"><option value="">−</option><option value="L" ${s.side==="L"?"selected":""}>左</option><option value="R" ${s.side==="R"?"selected":""}>右</option></select>
+      <div class="main"><div class="t">${fmtTime(s.t)}${s.place?`　${esc(s.place)}`:""}</div><div class="rawline">${(()=>{ const c=s.card&&cardByNo(s.card); return c ? esc(displayName(c)||c.no) : "未判別のコード"; })()}</div></div>
+      <select data-side-i="${i}" class="sidesel" aria-label="排出口"><option value="">左右</option><option value="L" ${s.side==="L"?"selected":""}>左</option><option value="R" ${s.side==="R"?"selected":""}>右</option></select>
       <select data-i="${i}" aria-label="カード">${cardOptions(s.card)}</select>
     </li>`).join("") : `<li style="justify-content:center;color:var(--muted)">まだ読み込み履歴はありません。QR読み込みタブから始めよう</li>`;
 }
@@ -1015,29 +1100,7 @@ $("#hist").addEventListener("change", e=>{
   if (ss){ const s=scans[+ss.dataset.sideI]; if (ss.value) s.side=ss.value; else delete s.side; save(); renderOrder(); return; }
   const sel=e.target.closest("select[data-i]"); if(!sel) return; linkScan(scans[+sel.dataset.i], sel.value); renderOrder();
 });
-/* ---------- 配列（排出口ごとの排出順） ---------- */
-let histMode = "list";
-document.querySelectorAll("[data-hmode]").forEach(b=>b.addEventListener("click",()=>{
-  histMode=b.dataset.hmode;
-  document.querySelectorAll("[data-hmode]").forEach(x=>x.setAttribute("aria-selected", x===b));
-  $("#listView").hidden = histMode!=="list"; $("#orderView").hidden = histMode!=="order";
-  if (histMode==="order") renderOrder();
-}));
-function dayKey(t){ const d=new Date(t), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())}`; }
-function renderOrder(){
-  const el=$("#orderView"); if (!el) return;
-  const withSide = scans.filter(s=>s.side);
-  if (!withSide.length){ el.innerHTML = `<div class="empty">まだ配列の記録はありません。<br>QRタブで「左」か「右」を選んでから読み込むと、ここに排出順で並びます</div>`; return; }
-  const groups = new Map();
-  withSide.forEach(s=>{ const k=dayKey(s.t)+"\u0000"+(s.place||""); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(s); });
-  const keys=[...groups.keys()].sort((a,b)=>groups.get(b)[0].t-groups.get(a)[0].t);
-  const col = (list)=> list.length ? `<ol class="ocol">${list.map(s=>{ const c=s.card&&cardByNo(s.card), n=c?displayName(c):"";
-      return `<li><span class="ono">${c?esc(c.no):"未判別"}</span>${c?`<span class="rar ${c.rar}">${c.rar}</span>`:""}<span class="onm">${esc(n)}</span></li>`; }).join("")}</ol>` : `<p class="onone">記録なし</p>`;
-  el.innerHTML = keys.map(k=>{ const [day,place]=k.split("\u0000"), list=groups.get(k).slice().sort((a,b)=>a.t-b.t);
-    const L=list.filter(s=>s.side==="L"), R=list.filter(s=>s.side==="R");
-    return `<section class="ogroup"><h3>${esc(day)}${place?`<small>${esc(place)}</small>`:""}</h3>
-      <div class="ocols"><div><div class="oh">◀ 左 <b>${L.length}</b></div>${col(L)}</div><div><div class="oh">右 ▶ <b>${R.length}</b></div>${col(R)}</div></div></section>`; }).join("");
-}
+function renderOrder(){} // 配列タブは廃止（左右は履歴とCSVに残る）
 $("#clearHist").addEventListener("click", ()=>{ if(!scans.length) return; if(!confirm("読み込み履歴をすべて消去しますか？")) return; scans=[]; save(); renderHist(); toast("履歴を消去しました"); });
 
 function csvCell(v){ v=String(v??""); return /[",\r\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; }
@@ -1068,7 +1131,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-04 r12";
+const APP_VERSION = "2026-10-05 r16";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -1076,6 +1139,9 @@ function snapInfo(){
     if (!sn) return "";
     return `<p>前回のカードデータ更新（${esc(sn.from)} → ${esc(sn.to)}）の直前の状態を保存しています。</p><button class="btn small" id="snapRestore">更新前の状態に戻す</button>`;
   }catch(e){ return ""; } }
+function storageText(){
+  try{ const n=(localStorage.getItem(LS_KEY)||"").length*2; const mb=n/1024/1024;
+    return `${mb<0.1?(n/1024).toFixed(0)+"KB":mb.toFixed(1)+"MB"} / 約5MB（読み込み3万回分くらいまで余裕があります）`; }catch(e){ return "不明"; } }
 function lastBackupText(){ try{ const t=+localStorage.getItem(LS_KEY+":lastBackup"); return t?fmtTime(t):"まだありません"; }catch(e){ return "不明"; } }
 
 $("#gearBtn").addEventListener("click", ()=>{
@@ -1085,6 +1151,7 @@ $("#gearBtn").addEventListener("click", ()=>{
     <div class="set-sec">
       <h3>バックアップ</h3>
       <p>所持 ${owned} 種・履歴 ${scans.length} 件。前回のバックアップ：${lastBackupText()}</p>
+      <p>保存容量：${storageText()}</p>
       <label class="chk"><input type="checkbox" id="bkPhotos"> 写真も含める（ファイルが大きくなります）</label>
       <button class="btn primary small" id="bkSave">バックアップを保存</button>
     </div>
@@ -1144,6 +1211,21 @@ $("#gearBtn").addEventListener("click", ()=>{
     store={cards:{}, custom:[], qrmap:{}}; scans=[]; clearAllPhotos(); save(); closeSheet(); renderAll(); toast("消去しました");
   };
 });
+
+/* ---------- 使い方の開閉を覚える ---------- */
+document.querySelectorAll("details.howto").forEach(d=>{
+  const k = LS_KEY+":howto:"+d.dataset.howto;
+  try{ d.open = localStorage.getItem(k)!=="0"; }catch(e){ d.open = true; }
+  d.addEventListener("toggle", ()=>{ try{ localStorage.setItem(k, d.open?"1":"0"); }catch(e){} });
+});
+
+/* ---------- アクセス解析（config.js に GoatCounter のコードを入れたときだけ動く） ---------- */
+(function(){
+  const code = window.APP_CONFIG && String(window.APP_CONFIG.goatcounter||"").trim();
+  if (!code || !/^[a-z0-9-]+$/i.test(code) || location.protocol!=="https:") return;
+  const s=document.createElement("script"); s.async=true; s.src="https://gc.zgo.at/count.js";
+  s.dataset.goatcounter=`https://${code}.goatcounter.com/count`; document.head.appendChild(s);
+})();
 
 /* ---------- boot ---------- */
 renderAll();

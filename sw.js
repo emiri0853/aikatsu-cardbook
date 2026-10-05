@@ -1,6 +1,6 @@
 // アプリ本体はネット優先で読むので、ファイルを差し替えるだけで更新が反映されます
 const CACHE = "cardbook-v2";
-const SHELL = ["./", "./index.html", "./cards.js", "./manifest.webmanifest",
+const SHELL = ["./", "./index.html", "./cards.js", "./config.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 const CDN = ["https://cdn.jsdelivr.net/", "https://fonts.googleapis.com/", "https://fonts.gstatic.com/"];
 
