@@ -1,12 +1,19 @@
 /*
  * 設定ファイル（アプリを更新しても、このファイルは上書きしません）
- *
- * アクセス解析（GoatCounter）
- *   1. https://www.goatcounter.com/signup で無料登録
- *   2. 登録時に決めた「Code」（例: emiri-cards）を下の "" の中に入れる
- *   3. このファイルをGitHubにアップロード
- *   空のままならアクセス解析は動きません。
  */
 window.APP_CONFIG = {
+
+  // ■ スマホとパソコンの同期（Firebase）
+  firebase: {
+    apiKey: "AIzaSyBcIAdP9k7IN1_b0QLQeTM0rfOf8PcO0NE",
+    authDomain: "aikatsu-cardbook.firebaseapp.com",
+    projectId: "aikatsu-cardbook",
+    storageBucket: "aikatsu-cardbook.firebasestorage.app",
+    messagingSenderId: "749107118345",
+    appId: "1:749107118345:web:252ba36662682d512ad3d8",
+    measurementId: "G-9SCHDPRPKL"
+  },
+
+  // ■ アクセス解析（GoatCounter）※Firebaseのアナリティクスを使うなら空のままでOK
   goatcounter: ""
 };

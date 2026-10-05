@@ -36,3 +36,20 @@
 
 - 公式のカード画像はリポジトリに含めないでください。アプリは公式サイト上の画像を直接読み込んで表示するだけで、画像ファイルは保存・同梱しません（絞り込み →「公式画像を使う」でオフにできます）
 - 本アプリはバンダイ公式とは関係ありません
+
+## 同期（Firebase）
+
+config.js の `firebase` に設定を入れると、Googleアカウントまたはメールアドレスでログインして、端末間でデータを同期できます。
+
+Firestore のルール（ログインした本人のデータだけ読み書きできる）:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+```

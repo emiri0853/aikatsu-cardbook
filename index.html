@@ -65,6 +65,13 @@ h1 .spark{color:#FFC94D;font-size:14px;vertical-align:top;margin-left:2px}
 .bar{height:5px;border-radius:9px;background:var(--pink-soft);margin-top:3px;overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pink),var(--lav));border-radius:9px;transition:width .4s}
 .gear{background:var(--surface);border:0;box-shadow:var(--shadow);border-radius:50%;width:40px;height:40px;display:grid;place-items:center;flex:none;color:var(--lav)}
+.gear{position:relative}
+.cdot{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 2px var(--surface);background:var(--line)}
+.cdot[hidden]{display:none}
+.cdot.ok{background:#22B8A6}.cdot.sync{background:#FFC94D}.cdot.error{background:#E83E8C}
+.mail{margin-top:10px}
+.mail summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--muted)}
+.mail input{width:100%;border:2px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--bg);margin-top:8px}
 .gear svg{width:21px;height:21px}
 nav{display:flex;max-width:860px;margin:10px auto 0;background:var(--surface);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
 nav button{flex:1;border:0;background:none;padding:8px 0;border-radius:999px;font-weight:800;font-size:14px;color:var(--muted);white-space:nowrap}
@@ -334,7 +341,7 @@ a.btn{text-decoration:none;display:inline-block}
     <h1><small>AIKATSU! ENCORE</small>カード帳<span class="spark" aria-hidden="true">✦</span></h1>
     <div class="brand-r">
       <div class="progress" aria-label="所持状況"><b id="ownCount">0</b> / <span id="totalCount">0</span> 種<div class="bar"><i id="ownBar"></i></div></div>
-      <button class="gear" id="gearBtn" aria-label="設定とバックアップ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="gear" id="gearBtn" aria-label="設定とバックアップ"><span class="cdot off" id="cloudDot" hidden></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
   </div>
   <nav role="tablist">
@@ -464,6 +471,10 @@ const LS_KEY = "aikatsu-encore-v1";
 let store = {cards:{}, custom:[], qrmap:{}};
 let scans = [];
 try { const s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); if (s){ store = Object.assign(store, s.store||{}); scans = s.scans||[]; } } catch(e){}
+const newScanId = t => t.toString(36)+Math.random().toString(36).slice(2,7);
+scans.forEach(s=>{ if (!s.id) s.id=newScanId(s.t||0); });
+// 同期で履歴が入れ替わっても、画面上の行と実データを番号(id)で結びつける
+const liveScan = e => scans.find(s=>s.id===e.id) || e;
 const ui = {q:"", status:"all", rar:"all", type:"all", set:"all", cat:"all", idol:"all", sort:"num", thumbs:true, official:true, tab:"list"};
 try { ui.thumbs = localStorage.getItem(LS_KEY+":thumbs")!=="0"; ui.official = localStorage.getItem(LS_KEY+":official")!=="0"; } catch(e){}
 
@@ -504,10 +515,11 @@ try{
 
 /* ---------- persistence: localStorage ---------- */
 let saveFailed = false;
-function save(){
+function saveLocal(){
   try { localStorage.setItem(LS_KEY, JSON.stringify({store, scans})); saveFailed=false; }
   catch(e){ if (!saveFailed){ saveFailed=true; toast("保存できませんでした。容量不足の可能性があります"); } }
 }
+function save(){ saveLocal(); cloudSchedule(); }
 // ブラウザに「データを消さないで」とお願いする（対応ブラウザのみ）
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
@@ -983,7 +995,7 @@ function undoScan(entry){
     patch(entry.card,{own, giveCount:g, give:g>0});
   }
   entry.undone = true;
-  const i = scans.indexOf(entry); if (i>-1) scans.splice(i,1);
+  const i = scans.findIndex(s=>s===entry || (entry.id && s.id===entry.id)); if (i>-1) scans.splice(i,1);
   save(); renderAll(); renderRecent(); toast(entry.card?`${entry.card} の＋1を取り消しました`:"取り消しました");
 }
 function onDecoded(raw, fromFile, cx){
@@ -994,7 +1006,7 @@ function onDecoded(raw, fromFile, cx){
     if (presentMap[key] && now-presentMap[key] < GONE_MS){ presentMap[key]=now; return; }
   }
   const card = guessCard(raw);
-  const entry = {t:now, raw, card};
+  const entry = {id:newScanId(now), t:now, raw, card};
   if (curPlace) entry.place = curPlace;
   scans.push(entry);
   if (card) addOne(entry); else save();
@@ -1023,8 +1035,8 @@ function renderRecent(){
 $("#scanResult").addEventListener("click", e=>{
   const lr=e.target.closest("[data-lr]");
   if (lr){ // 左右をあとから付ける・直す（同じボタンをもう一度押すと解除）
-    const entry=sessionScans[+lr.closest("li").dataset.ri];
-    if (entry.side===lr.dataset.lr) delete entry.side; else entry.side=lr.dataset.lr;
+    const entry=sessionScans[+lr.closest("li").dataset.ri], live=liveScan(entry);
+    if (entry.side===lr.dataset.lr){ delete entry.side; delete live.side; } else { entry.side=live.side=lr.dataset.lr; }
     save(); renderRecent(); renderHist(); renderOrder(); return;
   }
   const b=e.target.closest("[data-undo]"); if(!b) return;
@@ -1037,7 +1049,7 @@ $("#scanResult").addEventListener("change", e=>{
   renderAll(); renderRecent(); toast(`${sel.value} に紐付けて＋1しました`);
 });
 function linkScan(entry, no){
-  entry.card = no;
+  entry.card = no; liveScan(entry).card = no;
   if (no) store.qrmap[entry.raw]=no; else delete store.qrmap[entry.raw];
   scans.forEach(s=>{ if (s.raw===entry.raw) s.card=no; });
   save(); renderHist();
@@ -1131,7 +1143,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-05 r16";
+const APP_VERSION = "2026-10-05 r18";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -1147,7 +1159,8 @@ function lastBackupText(){ try{ const t=+localStorage.getItem(LS_KEY+":lastBacku
 $("#gearBtn").addEventListener("click", ()=>{
   const owned = allCards().filter(c=>st(c.no).own>0).length;
   openSheet(`<h2>設定とバックアップ</h2>
-    <p class="note" style="margin-top:0">データはこのブラウザの中だけに保存されています。機種変更やブラウザのデータ削除で消えるので、ときどきバックアップしてね。</p>
+    <p class="note" style="margin-top:0">${cloud.user?"データはクラウドとこの端末の両方に保存されています。":"データはこのブラウザの中だけに保存されています。機種変更やブラウザのデータ削除で消えるので、ログインして同期するか、ときどきバックアップしてね。"}</p>
+    <div class="set-sec" id="cloudSec">${cloudSecHtml()}</div>
     <div class="set-sec">
       <h3>バックアップ</h3>
       <p>所持 ${owned} 種・履歴 ${scans.length} 件。前回のバックアップ：${lastBackupText()}</p>
@@ -1219,6 +1232,161 @@ document.querySelectorAll("details.howto").forEach(d=>{
   d.addEventListener("toggle", ()=>{ try{ localStorage.setItem(k, d.open?"1":"0"); }catch(e){} });
 });
 
+/* ---------- クラウド同期（Firebase） ----------
+ * config.js に Firebase の設定があるときだけ動く。未設定ならこれまで通り端末内だけに保存。
+ * 保存先: users/{uid}（所持・求譲・名前など）と users/{uid}/scans/{YYYY-MM}（読み込み履歴を月ごと）
+ * 写真は端末内のみ（同期しない）
+ */
+var FB_CFG = window.APP_CONFIG && window.APP_CONFIG.firebase;
+var cloud = {ready:false, user:null, db:null, unsub:[], timer:null, lastStore:"", lastMonth:{}, status:"off"};
+function cloudEnabled(){ return !!(FB_CFG && FB_CFG.apiKey && FB_CFG.projectId); }
+function stableStr(v){
+  if (Array.isArray(v)) return "["+v.map(stableStr).join(",")+"]";
+  if (v && typeof v==="object") return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stableStr(v[k])).join(",")+"}";
+  return JSON.stringify(v===undefined?null:v);
+}
+// QRの中身を map のキーにすると Firestore で扱いにくいので、クラウドでは [中身, 番号] の配列で持つ
+function toCloudStore(s){ const c=JSON.parse(JSON.stringify(s)); c.qrmap=Object.entries(s.qrmap||{}); return c; }
+function fromCloudStore(c){ c=c||{}; return {cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:Object.fromEntries(Array.isArray(c.qrmap)?c.qrmap:Object.entries(c.qrmap||{}))}; }
+function monthKey(t){ const d=new Date(t); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+function groupMonths(list){ const m={}; list.forEach(s=>{ const k=monthKey(s.t); (m[k]=m[k]||[]).push(JSON.parse(JSON.stringify(s))); }); return m; }
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+function uref(){ return cloud.db.collection("users").doc(cloud.user.uid); }
+
+async function cloudInit(){
+  if (!cloudEnabled()) return;
+  try{
+    const b="https://www.gstatic.com/firebasejs/10.14.1/";
+    await loadScript(b+"firebase-app-compat.js");
+    await Promise.all([loadScript(b+"firebase-auth-compat.js"), loadScript(b+"firebase-firestore-compat.js")]);
+    firebase.initializeApp(FB_CFG);
+    // measurementId があればアクセス解析（Googleアナリティクス）も有効にする
+    if (FB_CFG.measurementId && location.protocol==="https:"){
+      loadScript(b+"firebase-analytics-compat.js").then(()=>{ try{ firebase.analytics(); }catch(e){} }).catch(()=>{});
+    }
+    cloud.db = firebase.firestore();
+    cloud.ready = true;
+    firebase.auth().getRedirectResult().catch(e=>toast(authErr(e)));
+    firebase.auth().onAuthStateChanged(u=>{ cloud.user=u; if (u) cloudStart(); else cloudStop(); renderCloud(); });
+  }catch(e){ console.warn(e); cloud.status="error"; }
+  renderCloud();
+}
+function applyRemote(rs, rscans){
+  store = fromCloudStore(rs);
+  scans = (rscans||[]).slice().sort((a,b)=>a.t-b.t);
+  saveLocal(); renderAll(); if (typeof renderRecent==="function") renderRecent();
+}
+async function cloudStart(){
+  cloud.status="sync"; renderCloud();
+  try{
+    const [snap, ms] = await Promise.all([uref().get(), uref().collection("scans").get()]);
+    const rs = snap.exists ? snap.data().store : null;
+    const rmonths = {}; ms.forEach(d=>{ rmonths[d.id]=d.data().items||[]; });
+    const rscans = [].concat(...Object.values(rmonths));
+    const localHas = Object.keys(store.cards).length || scans.length || store.custom.length;
+    const remoteHas = rs && (Object.keys(rs.cards||{}).length || rscans.length || (rs.custom||[]).length);
+    const same = remoteHas && stableStr(toCloudStore(store))===stableStr(toCloudStore(fromCloudStore(rs)))
+      && stableStr(groupMonths(scans))===stableStr(groupMonths(rscans.slice().sort((a,b)=>a.t-b.t)));
+    if (remoteHas && localHas && !same){
+      try{ localStorage.setItem(LS_KEY+":beforeCloud", JSON.stringify({at:Date.now(), store, scans})); }catch(e){}
+      const useCloud = confirm("クラウドとこの端末で、データが違います。\n\nOK：クラウドのデータを使う（この端末のデータは置き換え）\nキャンセル：この端末のデータをクラウドに上げる（クラウドのデータは置き換え）");
+      if (useCloud) applyRemote(rs, rscans);
+    } else if (remoteHas && !same){ applyRemote(rs, rscans); }
+    // 今クラウドにある内容を「前回送った内容」として覚える（差分だけ送るため）
+    if (remoteHas){ cloud.lastStore = stableStr(toCloudStore(fromCloudStore(rs))); Object.keys(rmonths).forEach(k=>cloud.lastMonth[k]=stableStr(rmonths[k])); }
+    await cloudPush();
+    cloud.unsub.push(uref().onSnapshot(s=>{
+      if (s.metadata.hasPendingWrites || !s.exists) return;
+      const j = stableStr(toCloudStore(fromCloudStore(s.data().store)));
+      if (j===cloud.lastStore) return;
+      cloud.lastStore=j; store=fromCloudStore(s.data().store); saveLocal(); renderAll();
+    }));
+    cloud.unsub.push(uref().collection("scans").onSnapshot(qs=>{
+      if (qs.metadata.hasPendingWrites) return;
+      const m={}; qs.forEach(d=>{ m[d.id]=d.data().items||[]; });
+      const changed = Object.keys(m).some(k=>stableStr(m[k])!==cloud.lastMonth[k]) || Object.keys(cloud.lastMonth).some(k=>!m[k]);
+      if (!changed) return;
+      cloud.lastMonth={}; Object.keys(m).forEach(k=>cloud.lastMonth[k]=stableStr(m[k]));
+      scans=[].concat(...Object.values(m)).sort((a,b)=>a.t-b.t); saveLocal(); renderHist();
+    }));
+    cloud.status="ok";
+  }catch(e){ console.warn(e); cloud.status="error"; toast("クラウドに接続できませんでした"); }
+  renderCloud();
+}
+function cloudStop(){ cloud.unsub.forEach(f=>{ try{f();}catch(e){} }); cloud.unsub=[]; cloud.lastStore=""; cloud.lastMonth={}; cloud.status="off"; }
+function cloudSchedule(){ if (!cloud.user) return; clearTimeout(cloud.timer); cloud.timer=setTimeout(cloudPush, 1000); }
+async function cloudPush(){
+  if (!cloud.user) return;
+  const batch=cloud.db.batch(); let n=0;
+  const cs=toCloudStore(store), sj=stableStr(cs);
+  if (sj!==cloud.lastStore){ batch.set(uref(), {store:cs, updatedAt:firebase.firestore.FieldValue.serverTimestamp(), app:APP_VERSION}); cloud.lastStore=sj; n++; }
+  const months=groupMonths(scans);
+  new Set([...Object.keys(months), ...Object.keys(cloud.lastMonth)]).forEach(k=>{
+    const items=months[k]||[], j=stableStr(items);
+    if (j===cloud.lastMonth[k]) return;
+    if (items.length){ batch.set(uref().collection("scans").doc(k), {items}); cloud.lastMonth[k]=j; }
+    else { batch.delete(uref().collection("scans").doc(k)); delete cloud.lastMonth[k]; }
+    n++;
+  });
+  if (!n) return;
+  cloud.status="sync"; renderCloud();
+  try{ await batch.commit(); cloud.status="ok"; }
+  catch(e){ console.warn(e); cloud.status="error"; cloud.lastStore=""; cloud.lastMonth={}; toast("クラウドに保存できませんでした。通信が戻ったらもう一度保存します"); }
+  renderCloud();
+}
+window.addEventListener("online", ()=>{ if (cloud.user && cloud.status==="error") cloudPush(); });
+
+function authErr(e){
+  const c=(e&&e.code)||"";
+  if (c.includes("invalid-credential")||c.includes("wrong-password")||c.includes("user-not-found")) return "メールアドレスかパスワードが違います";
+  if (c.includes("email-already-in-use")) return "このメールアドレスは登録済みです。ログインを押してください";
+  if (c.includes("weak-password")) return "パスワードは6文字以上にしてください";
+  if (c.includes("invalid-email")) return "メールアドレスの形が正しくありません";
+  if (c.includes("unauthorized-domain")) return "Firebaseの「承認済みドメイン」にこのサイトが登録されていません";
+  if (c.includes("popup-closed")||c.includes("cancelled-popup")) return "ログインを中止しました";
+  if (c.includes("network")) return "通信できませんでした";
+  return "ログインできませんでした（"+c+"）";
+}
+const STATUS_TEXT = {ok:"同期済み", sync:"同期中…", error:"同期できていません（通信を確認してね）", off:"未ログイン"};
+function cloudSecHtml(){
+  if (!cloudEnabled()) return `<h3>スマホとパソコンで同期</h3><p>まだ設定されていません。config.js に Firebase の設定を入れると使えます。</p>`;
+  if (!cloud.ready) return `<h3>スマホとパソコンで同期</h3><p>${cloud.status==="error"?"同期の準備に失敗しました。通信を確認して開き直してね":"準備中…"}</p>`;
+  if (cloud.user) return `<h3>スマホとパソコンで同期</h3>
+    <p>ログイン中：<b>${esc(cloud.user.email||cloud.user.displayName||"")}</b><br>状態：${STATUS_TEXT[cloud.status]||""}</p>
+    <p>同じアカウントでログインした端末どうしで、所持数・求譲・名前・履歴が自動で同期されます（写真は端末ごと）。</p>
+    <button class="btn small" data-cloud="logout">ログアウト</button>`;
+  return `<h3>スマホとパソコンで同期</h3>
+    <p>ログインすると、スマホとパソコンで同じデータを使えます。</p>
+    <button class="btn primary small" data-cloud="google">Googleでログイン</button>
+    <details class="mail"><summary>メールアドレスでログイン</summary>
+      <input type="text" id="cEmail" inputmode="email" autocomplete="username" placeholder="メールアドレス">
+      <input type="password" id="cPass" autocomplete="current-password" placeholder="パスワード（6文字以上）">
+      <div class="btns"><button class="btn primary small" data-cloud="login">ログイン</button><button class="btn small" data-cloud="signup">新規登録</button></div>
+    </details>`;
+}
+function renderCloud(){
+  const dot=$("#cloudDot"); if (dot){ dot.className="cdot "+(cloud.user?cloud.status:"off"); dot.hidden=!cloudEnabled(); }
+  const sec=$("#cloudSec"); if (sec) sec.innerHTML=cloudSecHtml();
+}
+document.addEventListener("click", async e=>{
+  const b=e.target.closest("[data-cloud]"); if (!b || !cloud.ready) return;
+  const a=firebase.auth(), act=b.dataset.cloud;
+  try{
+    if (act==="google"){
+      const p=new firebase.auth.GoogleAuthProvider();
+      try{ await a.signInWithPopup(p); }
+      catch(err){ if (/popup-blocked|operation-not-supported/.test(err.code||"")) await a.signInWithRedirect(p); else throw err; }
+    } else if (act==="login" || act==="signup"){
+      const em=$("#cEmail").value.trim(), pw=$("#cPass").value;
+      if (act==="login") await a.signInWithEmailAndPassword(em,pw); else await a.createUserWithEmailAndPassword(em,pw);
+    } else if (act==="logout"){
+      if (!confirm("ログアウトしますか？ この端末のデータはそのまま残ります")) return;
+      await a.signOut();
+    }
+    if (act!=="logout") toast("ログインしました");
+  }catch(err){ toast(authErr(err)); }
+});
+
 /* ---------- アクセス解析（config.js に GoatCounter のコードを入れたときだけ動く） ---------- */
 (function(){
   const code = window.APP_CONFIG && String(window.APP_CONFIG.goatcounter||"").trim();
@@ -1230,6 +1398,7 @@ document.querySelectorAll("details.howto").forEach(d=>{
 /* ---------- boot ---------- */
 renderAll();
 openIdb().then(()=>renderGrid());
+cloudInit();
 if ("serviceWorker" in navigator && location.protocol==="https:"){
   window.addEventListener("load", ()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 }
