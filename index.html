@@ -183,6 +183,8 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .seg button b{font-size:12px;margin-left:2px}
 .seg button[data-mode="give"][aria-selected="true"]{background:var(--mint);color:#fff}
 .seg button[data-mode="want"][aria-selected="true"]{background:var(--pink);color:#fff}
+.seg button[data-mode="own"][aria-selected="true"]{background:var(--lav);color:#fff}
+.tcount.own{background:var(--lav)}
 .tacts{display:flex;gap:8px;justify-content:flex-end;margin:-4px 0 12px}
 .tprev{display:block;width:100%;border-radius:12px;box-shadow:var(--shadow);margin-top:4px}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 10px}
@@ -379,6 +381,7 @@ a.btn{text-decoration:none;display:inline-block}
     <div class="seg" role="tablist" aria-label="譲・求の切り替え">
       <button data-mode="give" aria-selected="true">譲 <b id="giveN">0</b></button>
       <button data-mode="want" aria-selected="false">求 <b id="wantN">0</b></button>
+      <button data-mode="own" aria-selected="false">所持 <b id="ownN">0</b></button>
     </div>
     <div class="tacts">
       <button class="btn small primary" id="tradeImg">画像で保存</button>
@@ -489,7 +492,7 @@ const newScanId = t => t.toString(36)+Math.random().toString(36).slice(2,7);
 scans.forEach(s=>{ if (!s.id) s.id=newScanId(s.t||0); });
 // 同期で履歴が入れ替わっても、画面上の行と実データを番号(id)で結びつける
 const liveScan = e => scans.find(s=>s.id===e.id) || e;
-const ui = {q:"", status:"all", rar:"all", type:"all", set:"all", cat:"all", idol:"all", sort:"num", thumbs:true, official:true, tab:"list"};
+const ui = {q:"", status:"all", rar:[], type:"all", set:"all", cat:"all", idol:"all", sort:"num", thumbs:true, official:true, tab:"list"};
 try { ui.thumbs = localStorage.getItem(LS_KEY+":thumbs")!=="0"; ui.official = localStorage.getItem(LS_KEY+":official")!=="0"; } catch(e){}
 
 // 表示するカード = マスタ ＋ 自分で追加したカード ＋ データだけ残っているカード
@@ -608,7 +611,7 @@ function matches(c){
   if (ui.status==="want" && !s.want) return false;
   if (ui.status==="give" && s.giveCount<1) return false;
   if (ui.status==="dup" && s.own<2) return false;
-  if (ui.rar!=="all" && c.rar!==ui.rar) return false;
+  if (ui.rar.length && !ui.rar.includes(c.rar)) return false; // レアリティは複数選択
   if (ui.set!=="all" && c.setId!==ui.set && !(ui.set==="custom" && c.setId==="orphan")) return false;
   if (ui.cat!=="all" && c.cat!==ui.cat) return false;
   if (ui.idol!=="all" && c.idol!==ui.idol) return false;
@@ -636,13 +639,14 @@ function sorted(list){
 /* ---------- render: chips ---------- */
 const SORTS = [["num","番号順"],["rar","レア順"],["own","所持数順"]];
 const FILTER_KEYS = ["status","rar","type","set","cat","idol"];
+function resetFilters(){ FILTER_KEYS.forEach(k=>ui[k] = k==="rar" ? [] : "all"); }
 function filterDefs(){
   const cnt = f => allCards().filter(c=>f(c, st(c.no))).length;
   const extra = allCards().some(c=>c.setId==="custom"||c.setId==="orphan") ? [["custom","自分で追加", cnt(c=>c.setId==="custom"||c.setId==="orphan")]] : [];
   return [
     {key:"status", title:"持っているか", opts:[["all","すべて"],["own","所持",cnt((c,s)=>s.own>0)],["missing","未所持",cnt((c,s)=>s.own<1)],
       ["want","求",cnt((c,s)=>s.want)],["give","譲",cnt((c,s)=>s.giveCount>0)],["dup","ダブり",cnt((c,s)=>s.own>1)]]},
-    {key:"rar", title:"レアリティ", opts:[["all","すべて"], ...["ER","PR","R","N"].map(r=>[r,r,cnt(c=>c.rar===r)])]},
+    {key:"rar", title:"レアリティ（複数選べます）", opts:[["all","すべて"], ...["ER","PR","R","N"].map(r=>[r,r,cnt(c=>c.rar===r)])]},
     {key:"type", title:"タイプ", opts:[["all","すべて"], ...TYPES.map(t=>[t,t,cnt(c=>typeOf(c)===t)]), ["none","未設定",cnt(c=>!typeOf(c))]]},
     {key:"idol", title:"アイドル", opts:[["all","すべて"], ...[...new Set(BASE.map(c=>c.idol).filter(Boolean))].map(x=>[x,x,cnt(c=>c.idol===x)])]},
     {key:"cat", title:"カテゴリ", opts:[["all","すべて"], ...["トップス","ボトムス","シューズ","アクセサリー","トップス&ボトムス","フルコーデ"].filter(x=>BASE.some(c=>c.cat===x)).map(x=>[x,x,cnt(c=>c.cat===x)])]},
@@ -652,7 +656,9 @@ function filterDefs(){
 function renderChips(){
   // 適用中の条件を、タップで外せるピルとして表示
   const defs = filterDefs(), pills = [];
-  defs.forEach(d=>{ if (ui[d.key]!=="all"){ const o=d.opts.find(o=>o[0]===ui[d.key]); pills.push([d.key, o?o[1]:ui[d.key]]); } });
+  defs.forEach(d=>{
+    if (d.key==="rar"){ if (ui.rar.length) pills.push(["rar", ["ER","PR","R","N"].filter(r=>ui.rar.includes(r)).join("・")]); return; }
+    if (ui[d.key]!=="all"){ const o=d.opts.find(o=>o[0]===ui[d.key]); pills.push([d.key, o?o[1]:ui[d.key]]); } });
   $("#activeFilters").innerHTML = pills.map(([k,l])=>`<button class="apill" data-clear="${k}" aria-label="${esc(l)}の条件を外す">${esc(l)}<span>×</span></button>`).join("")
     + (pills.length>1 ? `<button class="apill clear" data-clear="all">すべて解除</button>` : "");
   const b=$("#fCount"); b.hidden=!pills.length; b.textContent=pills.length;
@@ -660,14 +666,14 @@ function renderChips(){
 }
 $("#activeFilters").addEventListener("click", e=>{
   const p=e.target.closest("[data-clear]"); if(!p) return;
-  if (p.dataset.clear==="all") FILTER_KEYS.forEach(k=>ui[k]="all"); else ui[p.dataset.clear]="all";
+  if (p.dataset.clear==="all") resetFilters(); else ui[p.dataset.clear] = p.dataset.clear==="rar" ? [] : "all";
   renderChips(); renderGrid();
 });
 function openFilter(){
   const html = () => {
     const n = allCards().filter(matches).length;
     return `<h2>絞り込み</h2>` + filterDefs().map(d=>`<div class="fsec"><h3>${d.title}</h3><div class="opts">${
-      d.opts.map(([v,l,c])=>`<button class="opt" data-k="${d.key}" data-v="${esc(v)}" aria-pressed="${ui[d.key]===v}">${esc(l)}${c!==undefined?`<small>${c}</small>`:""}</button>`).join("")
+      d.opts.map(([v,l,c])=>`<button class="opt" data-k="${d.key}" data-v="${esc(v)}" aria-pressed="${d.key==="rar" ? (v==="all" ? !ui.rar.length : ui.rar.includes(v)) : ui[d.key]===v}">${esc(l)}${c!==undefined?`<small>${c}</small>`:""}</button>`).join("")
     }</div></div>`).join("")
     + `<div class="fsec"><h3>並び順</h3><div class="opts">${SORTS.map(([v,l])=>`<button class="opt" data-k="sort" data-v="${v}" aria-pressed="${ui.sort===v}">${l}</button>`).join("")}</div></div>`
     + `<div class="fsec"><h3>表示</h3><div class="opts"><button class="opt" data-k="thumbs" aria-pressed="${ui.thumbs}">画像を表示</button><button class="opt" data-k="official" aria-pressed="${ui.official}">公式画像を使う</button></div></div>`
@@ -680,11 +686,12 @@ function openFilter(){
     if (o){
       if (o.dataset.k==="thumbs"){ ui.thumbs=!ui.thumbs; try{localStorage.setItem(LS_KEY+":thumbs",ui.thumbs?"1":"0");}catch(_){ } }
       else if (o.dataset.k==="official"){ ui.official=!ui.official; try{localStorage.setItem(LS_KEY+":official",ui.official?"1":"0");}catch(_){ } }
+      else if (o.dataset.k==="rar"){ const v=o.dataset.v; ui.rar = v==="all" ? [] : (ui.rar.includes(v) ? ui.rar.filter(r=>r!==v) : [...ui.rar, v]); if (ui.rar.length===4) ui.rar=[]; }
       else ui[o.dataset.k]=o.dataset.v;
       const top=sheet.scrollTop; sheet.innerHTML=html(); sheet.scrollTop=top;
       return;
     }
-    if (e.target.closest("[data-reset]")){ FILTER_KEYS.forEach(k=>ui[k]="all"); ui.sort="num"; const top=sheet.scrollTop; sheet.innerHTML=html(); sheet.scrollTop=top; return; }
+    if (e.target.closest("[data-reset]")){ resetFilters(); ui.sort="num"; const top=sheet.scrollTop; sheet.innerHTML=html(); sheet.scrollTop=top; return; }
     if (e.target.closest("[data-done]")){ closeSheet(); }
   };
 }
@@ -743,19 +750,24 @@ function renderHeader(){
   $("#ownBar").style.width = total ? (own/total*100)+"%" : "0";
 }
 let tradeMode = "give";
+const TMODE = {
+  give:{label:"譲",  slug:"yuzu",   color:"#22B8A6", has:s=>s.giveCount>0, count:s=>s.giveCount},
+  want:{label:"求",  slug:"motomu", color:"#FF5CA8", has:s=>s.want,        count:null},
+  own: {label:"所持", slug:"shoji",  color:"#A98BFF", has:s=>s.own>0,       count:s=>s.own},
+};
 function renderTrade(){
   const byNo = (a,b)=> a.no.localeCompare(b.no, "ja", {numeric:true});
-  const give = allCards().filter(c=>st(c.no).giveCount>0).sort(byNo);
-  const want = allCards().filter(c=>st(c.no).want).sort(byNo);
-  $("#giveN").textContent = give.length; $("#wantN").textContent = want.length;
+  const lists = {}; Object.keys(TMODE).forEach(k=>{ lists[k]=allCards().filter(c=>TMODE[k].has(st(c.no))).sort(byNo); });
+  $("#giveN").textContent = lists.give.length; $("#wantN").textContent = lists.want.length; $("#ownN").textContent = lists.own.length;
+  const M = TMODE[tradeMode];
   document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===tradeMode));
-  const list = tradeMode==="give" ? give : want;
+  const list = lists[tradeMode];
   $("#tradeGrid").innerHTML = list.length ? list.map(c=>{ const s=st(c.no), n=displayName(c);
     return `<div class="titem"><div class="tthumb" data-tthumb="${esc(c.no)}"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span>
-      ${tradeMode==="give"?`<span class="tcount">×${s.giveCount}</span>`:""}</div>
+      ${M.count?`<span class="tcount ${tradeMode}">×${M.count(s)}</span>`:""}</div>
       <div class="tname">${n?esc(n):esc(c.no)}</div>
       <div class="tno">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span></div></div>`; }).join("")
-    : `<div class="empty" style="grid-column:1/-1">${tradeMode==="give"?"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます":"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます"}</div>`;
+    : `<div class="empty" style="grid-column:1/-1">${({give:"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます",want:"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます",own:"持っているカードはまだありません。<br>カード一覧の「＋」かQR読み込みで登録すると、ここに並びます"})[tradeMode]}</div>`;
   document.querySelectorAll("[data-tthumb]").forEach(async el=>{ const r=await imgSrc(el.dataset.tthumb); if(r){ el.insertAdjacentHTML("afterbegin",imgTag(r)); el.classList.add("has"); } });
 }
 document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
@@ -763,7 +775,7 @@ document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListene
 /* ---------- 譲・求を画像で保存／カード名をコピー ---------- */
 function tradeList(){
   const byNo = (a,b)=> a.no.localeCompare(b.no, "ja", {numeric:true});
-  return allCards().filter(c=> tradeMode==="give" ? st(c.no).giveCount>0 : st(c.no).want).sort(byNo);
+  return allCards().filter(c=> TMODE[tradeMode].has(st(c.no))).sort(byNo);
 }
 // 公式画像はそのままだと画像として書き出せないため、CORS対応の画像変換サービス(wsrv.nl)を経由して読み込む
 function loadImg(src){ return new Promise(res=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; }); }
@@ -776,7 +788,7 @@ async function canvasImg(c){
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"]};
 async function makeTradeImage(list){
-  const give = tradeMode==="give";
+  const M = TMODE[tradeMode];
   const cols = list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6;
   const W=1080, pad=36, gap=16, head=110;
   const tw=Math.floor((W-pad*2-gap*(cols-1))/cols), th=Math.round(tw*670/460);
@@ -784,10 +796,11 @@ async function makeTradeImage(list){
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const x=cv.getContext("2d");
   x.fillStyle="#FFF4FA"; x.fillRect(0,0,W,H);
   const font = '"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
-  x.fillStyle = give ? "#22B8A6" : "#FF5CA8"; rr(x,pad,30,92,56,28); x.fill();
-  x.fillStyle="#fff"; x.font=`800 34px ${font}`; x.textAlign="center"; x.textBaseline="middle"; x.fillText(give?"譲":"求", pad+46, 59);
+  x.font=`800 34px ${font}`; const lw=Math.max(92, x.measureText(M.label).width+48);
+  x.fillStyle = M.color; rr(x,pad,30,lw,56,28); x.fill();
+  x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(M.label, pad+lw/2, 59);
   x.fillStyle="#4A2357"; x.textAlign="left"; x.font=`800 30px ${font}`;
-  x.fillText(give ? `${list.length}種 / ${list.reduce((a,c)=>a+st(c.no).giveCount,0)}枚` : `${list.length}種`, pad+110, 59);
+  x.fillText(M.count ? `${list.length}種 / ${list.reduce((a,c)=>a+M.count(st(c.no)),0)}枚` : `${list.length}種`, pad+lw+18, 59);
   const imgs = await Promise.all(list.map(canvasImg));
   list.forEach((c,i)=>{
     const cx=pad+(i%cols)*(tw+gap), cy=head+Math.floor(i/cols)*(th+gap), im=imgs[i];
@@ -808,10 +821,10 @@ async function makeTradeImage(list){
     const g=x.createLinearGradient(cx+6,0,cx+6+rw,0); g.addColorStop(0,RAR_FILL[c.rar][0]); g.addColorStop(1,RAR_FILL[c.rar][1]);
     x.fillStyle=g; rr(x,cx+6,cy+th-bh-6,rw,bh,bh/2); x.fill();
     x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(c.rar, cx+6+rw/2, cy+th-bh/2-6+1);
-    // 枚数（右下・譲のみ）
-    if (give){
-      const t="×"+st(c.no).giveCount; const cw=x.measureText(t).width+bh*0.8;
-      x.fillStyle="#22B8A6"; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
+    // 枚数（右下・譲と所持）
+    if (M.count){
+      const t="×"+M.count(st(c.no)); const cw=x.measureText(t).width+bh*0.8;
+      x.fillStyle=M.color; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
       x.fillStyle="#fff"; x.fillText(t, cx+tw-cw/2-6, cy+th-bh/2-6+1);
     }
   });
@@ -823,9 +836,9 @@ $("#tradeImg").addEventListener("click", async ()=>{
   let blob, url;
   try{ const cv=await makeTradeImage(list); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
   catch(e){ console.warn(e); toast("画像を作れませんでした"); return; }
-  const name=`aikatsu_${tradeMode==="give"?"yuzu":"motomu"}_${stamp()}.png`;
-  openSheet(`<h2>${tradeMode==="give"?"譲":"求"}の画像</h2>
-    <img class="tprev" src="${url}" alt="${tradeMode==="give"?"譲":"求"}のカード一覧画像">
+  const M=TMODE[tradeMode], name=`aikatsu_${M.slug}_${stamp()}.png`;
+  openSheet(`<h2>${M.label}の画像</h2>
+    <img class="tprev" src="${url}" alt="${M.label}のカード一覧画像">
     <p class="note">画像を長押しして「写真に追加」でも保存できます。</p>
     <div class="btns"><button class="btn primary" id="tiSave">写真に保存</button><button class="btn" id="tiClose">閉じる</button></div>`);
   $("#tiClose").onclick=closeSheet;
@@ -839,8 +852,8 @@ $("#tradeImg").addEventListener("click", async ()=>{
 });
 $("#tradeCopy").addEventListener("click", async ()=>{
   const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
-  const give=tradeMode==="give";
-  const text = (give?"【譲】":"【求】")+"\n"+list.map(c=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${give?" ×"+st(c.no).giveCount:""}`).join("\n");
+  const M=TMODE[tradeMode];
+  const text = `【${M.label}】\n`+list.map(c=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${M.count?" ×"+M.count(st(c.no)):""}`).join("\n");
   try{ await navigator.clipboard.writeText(text); toast("カード名をコピーしました"); }
   catch(e){
     const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
@@ -1262,7 +1275,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-08 r22";
+const APP_VERSION = "2026-10-08 r24";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -1365,8 +1378,11 @@ function stableStr(v){
   return JSON.stringify(v===undefined?null:v);
 }
 // QRの中身を map のキーにすると Firestore で扱いにくいので、クラウドでは [中身, 番号] の配列で持つ
-function toCloudStore(s){ const c=JSON.parse(JSON.stringify(s)); c.qrmap=Object.entries(s.qrmap||{}); return c; }
-function fromCloudStore(c){ c=c||{}; return {cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:Object.fromEntries(Array.isArray(c.qrmap)?c.qrmap:Object.entries(c.qrmap||{}))}; }
+// Firestore は「配列の中の配列」を保存できないので、QRの紐付けは [{q:中身, n:番号}] の形で持つ
+function toCloudStore(s){ const c=JSON.parse(JSON.stringify(s)); c.qrmap=Object.entries(s.qrmap||{}).map(([q,n])=>({q,n})); return c; }
+function fromCloudStore(c){ c=c||{};
+  const qm = Array.isArray(c.qrmap) ? Object.fromEntries(c.qrmap.map(e=>Array.isArray(e)?e:[e.q,e.n]).filter(e=>e[0])) : Object.assign({},c.qrmap||{});
+  return {cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:qm}; }
 function monthKey(t){ const d=new Date(t); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 function groupMonths(list){ const m={}; list.forEach(s=>{ const k=monthKey(s.t); (m[k]=m[k]||[]).push(JSON.parse(JSON.stringify(s))); }); return m; }
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
@@ -1436,7 +1452,8 @@ function cloudStop(){ cloud.unsub.forEach(f=>{ try{f();}catch(e){} }); cloud.uns
 function cloudSchedule(){ if (!cloud.user) return; clearTimeout(cloud.timer); cloud.timer=setTimeout(cloudPush, 1000); }
 async function cloudPush(){
   if (!cloud.user) return;
-  const batch=cloud.db.batch(); let n=0;
+  let batch; try{ batch=cloud.db.batch(); }catch(e){ return; } let n=0;
+  try{
   const cs=toCloudStore(store), sj=stableStr(cs);
   if (sj!==cloud.lastStore){ batch.set(uref(), {store:cs, updatedAt:firebase.firestore.FieldValue.serverTimestamp(), app:APP_VERSION}); cloud.lastStore=sj; n++; }
   const months=groupMonths(scans);
@@ -1447,6 +1464,7 @@ async function cloudPush(){
     else { batch.delete(uref().collection("scans").doc(k)); delete cloud.lastMonth[k]; }
     n++;
   });
+  }catch(e){ console.warn(e); cloud.status="error"; cloud.lastStore=""; cloud.lastMonth={}; toast("クラウドに保存できないデータがありました"); renderCloud(); return; }
   if (!n) return;
   cloud.status="sync"; renderCloud();
   try{ await batch.commit(); cloud.status="ok"; }
