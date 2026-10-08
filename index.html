@@ -265,6 +265,8 @@ a.btn{text-decoration:none;display:inline-block}
 .lr{flex:none;display:flex;gap:4px}
 .lr button{border:2px solid var(--line);background:none;border-radius:10px;width:38px;height:36px;font-weight:800;font-size:14px;color:var(--muted)}
 .lr button[aria-pressed="true"]{background:var(--lav);border-color:var(--lav);color:#fff}
+.rmain select{width:100%;border:2px solid var(--pink);border-radius:12px;background:var(--bg);padding:6px;font-size:13px}
+.rmain select.known{border-color:var(--line);font-weight:700}
 .undo{flex:none;border:0;background:var(--bg);color:var(--pink-deep);font-weight:800;font-size:12px;border-radius:999px;padding:9px 10px}
 .sidebar{margin:6px 0 10px;display:flex;flex-direction:column;gap:8px}
 .sidepick{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--surface);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
@@ -388,7 +390,7 @@ a.btn{text-decoration:none;display:inline-block}
         <li>読めると<b>自動で所持が＋1</b>。0.5秒後にはもう次のカードを読めます。</li>
         <li>同じカードを何枚も読むときは、<b>1枚ずつ画面の外に出してから</b>かざしてください。</li>
         <li>間違えて読んだら、下の一覧の<b>「取消」</b>で元に戻せます。</li>
-        <li>「未登録のコード」と出たら、下の一覧でどのカードか選んでください。次からは自動で数えます。</li>
+        <li>「未登録のコード」と出たら、下の一覧でどのカードか選んでください。次からは自動で数えます。カードを間違えて選んだときも、同じ一覧で選び直せます。</li>
       </ol>
       <h4>配列を記録するとき</h4>
       <ul>
@@ -464,7 +466,13 @@ MASTER.sets.forEach(s=>(s.cards||[]).forEach(row=>{
   BASE_NOS.add(no);
 }));
 // 公式カードリストの画像URLは「番号_レアリティ」の規則（E1, E2… の弾のみ）
-const officialUrl = c => (c.master && /^(E\d+|EP)$/.test(c.setId)) ? `https://dcd.aikatsu.com/encore/images/cardlist/card/${c.no}_${c.rar}.webp` : null;
+const officialUrl = c => {
+  if (!c.master) return null;
+  const base = "https://dcd.aikatsu.com/encore/images/cardlist/card/";
+  if (/^(E\d+|EP)$/.test(c.setId)) return `${base}${c.no}_${c.rar}.webp`;
+  if (c.setId==="PA") return `${base}${c.no.replace(/-P$/,"")}_${c.rar}_p1.webp`; // パラレルは「元の番号_レア_p1」
+  return null;
+};
 
 /* ---------- state ---------- */
 const LS_KEY = "aikatsu-encore-v1";
@@ -1025,8 +1033,7 @@ function renderRecent(){
   $("#scanResult").innerHTML = list.length ? `<div class="recent-h">今回読み込んだカード</div><ul class="recent">` + list.map((e,i)=>{
     const c = e.card && cardByNo(e.card), n = c ? displayName(c) : "";
     return `<li data-ri="${sessionScans.indexOf(e)}">
-      <div class="rmain">${c ? `<b>${esc(e.card)}</b><span class="rname">${n?esc(n):""}</span>`
-        : `<select data-link aria-label="このコードのカード">${cardOptions("")}</select>`}</div>
+      <div class="rmain"><select data-link class="${c?"known":""}" aria-label="このカード（間違えていたら選び直せます）">${cardOptions(e.card||"")}</select></div>
       <div class="lr" role="group" aria-label="排出口">
         <button data-lr="L" aria-pressed="${e.side==="L"}">左</button><button data-lr="R" aria-pressed="${e.side==="R"}">右</button>
       </div>
@@ -1044,10 +1051,27 @@ $("#scanResult").addEventListener("click", e=>{
 });
 $("#scanResult").addEventListener("change", e=>{
   const sel=e.target.closest("[data-link]"); if(!sel || !sel.value) return;
-  const entry = sessionScans[+sel.closest("li").dataset.ri];
-  linkScan(entry, sel.value); addOne(entry);
-  renderAll(); renderRecent(); toast(`${sel.value} に紐付けて＋1しました`);
+  relinkScan(sessionScans[+sel.closest("li").dataset.ri], sel.value);
 });
+// カードを選び直す。このQRで数えた分を、間違えたカードから正しいカードへ付け替える
+function relinkScan(entry, no){
+  const raw = entry.raw;
+  const targets = scans.filter(s=>s.raw===raw);
+  const wrong = targets.filter(s=>s.added && s.card && s.card!==no).length;
+  if (wrong>1 && !confirm(`このQRで読み込んだ${targets.length}件を、すべて「${label(cardByNo(no))}」に付け替えます。よろしいですか？`)){ renderRecent(); renderHist(); return; }
+  let moved="";
+  targets.forEach(s=>{
+    if (s.added && s.card && s.card!==no){
+      const o=st(s.card), own=Math.max(0,o.own-1), g=Math.min(o.giveCount,own);
+      patch(s.card,{own, giveCount:g, give:g>0}); moved=s.card;
+      patch(no,{own:st(no).own+1});
+    } else if (!s.added){ s.card=no; addOne(s); }
+    s.card = no;
+  });
+  sessionScans.forEach(x=>{ if (x.raw===raw){ const l=liveScan(x); x.card=no; x.added=l.added; } });
+  store.qrmap[raw]=no; save(); renderAll(); renderRecent();
+  toast(moved ? `${moved} → ${no} に付け替えました` : `${no} に紐付けて数えました`);
+}
 function linkScan(entry, no){
   entry.card = no; liveScan(entry).card = no;
   if (no) store.qrmap[entry.raw]=no; else delete store.qrmap[entry.raw];
@@ -1110,7 +1134,8 @@ function renderHist(){
 $("#hist").addEventListener("change", e=>{
   const ss=e.target.closest("select[data-side-i]");
   if (ss){ const s=scans[+ss.dataset.sideI]; if (ss.value) s.side=ss.value; else delete s.side; save(); renderOrder(); return; }
-  const sel=e.target.closest("select[data-i]"); if(!sel) return; linkScan(scans[+sel.dataset.i], sel.value); renderOrder();
+  const sel=e.target.closest("select[data-i]"); if(!sel) return;
+  if (sel.value) relinkScan(scans[+sel.dataset.i], sel.value); else linkScan(scans[+sel.dataset.i], "");
 });
 function renderOrder(){} // 配列タブは廃止（左右は履歴とCSVに残る）
 $("#clearHist").addEventListener("click", ()=>{ if(!scans.length) return; if(!confirm("読み込み履歴をすべて消去しますか？")) return; scans=[]; save(); renderHist(); toast("履歴を消去しました"); });
@@ -1143,7 +1168,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-05 r18";
+const APP_VERSION = "2026-10-08 r21";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
