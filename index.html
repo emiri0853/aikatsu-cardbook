@@ -183,6 +183,8 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .seg button b{font-size:12px;margin-left:2px}
 .seg button[data-mode="give"][aria-selected="true"]{background:var(--mint);color:#fff}
 .seg button[data-mode="want"][aria-selected="true"]{background:var(--pink);color:#fff}
+.tacts{display:flex;gap:8px;justify-content:flex-end;margin:-4px 0 12px}
+.tprev{display:block;width:100%;border-radius:12px;box-shadow:var(--shadow);margin-top:4px}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 10px}
 .titem{min-width:0}
 .tthumb{position:relative;aspect-ratio:460/670;border-radius:8px;overflow:hidden;display:grid;place-items:center;box-shadow:var(--shadow);
@@ -377,6 +379,10 @@ a.btn{text-decoration:none;display:inline-block}
     <div class="seg" role="tablist" aria-label="譲・求の切り替え">
       <button data-mode="give" aria-selected="true">譲 <b id="giveN">0</b></button>
       <button data-mode="want" aria-selected="false">求 <b id="wantN">0</b></button>
+    </div>
+    <div class="tacts">
+      <button class="btn small primary" id="tradeImg">画像で保存</button>
+      <button class="btn small ghost" id="tradeCopy">カード名をコピー</button>
     </div>
     <div class="tgrid" id="tradeGrid"></div>
   </section>
@@ -753,6 +759,94 @@ function renderTrade(){
   document.querySelectorAll("[data-tthumb]").forEach(async el=>{ const r=await imgSrc(el.dataset.tthumb); if(r){ el.insertAdjacentHTML("afterbegin",imgTag(r)); el.classList.add("has"); } });
 }
 document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
+
+/* ---------- 譲・求を画像で保存／カード名をコピー ---------- */
+function tradeList(){
+  const byNo = (a,b)=> a.no.localeCompare(b.no, "ja", {numeric:true});
+  return allCards().filter(c=> tradeMode==="give" ? st(c.no).giveCount>0 : st(c.no).want).sort(byNo);
+}
+// 公式画像はそのままだと画像として書き出せないため、CORS対応の画像変換サービス(wsrv.nl)を経由して読み込む
+function loadImg(src){ return new Promise(res=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; }); }
+async function canvasImg(c){
+  const own = await getPhoto(c.no);
+  if (own) return loadImg(own);
+  const u = ui.official ? officialUrl(c) : null;
+  return u ? loadImg("https://wsrv.nl/?url="+encodeURIComponent(u.replace(/^https?:\/\//,""))+"&w=360&output=png") : null;
+}
+function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"]};
+async function makeTradeImage(list){
+  const give = tradeMode==="give";
+  const cols = list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6;
+  const W=1080, pad=36, gap=16, head=110;
+  const tw=Math.floor((W-pad*2-gap*(cols-1))/cols), th=Math.round(tw*670/460);
+  const rows=Math.ceil(list.length/cols), H=head+rows*th+(rows-1)*gap+pad;
+  const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const x=cv.getContext("2d");
+  x.fillStyle="#FFF4FA"; x.fillRect(0,0,W,H);
+  const font = '"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
+  x.fillStyle = give ? "#22B8A6" : "#FF5CA8"; rr(x,pad,30,92,56,28); x.fill();
+  x.fillStyle="#fff"; x.font=`800 34px ${font}`; x.textAlign="center"; x.textBaseline="middle"; x.fillText(give?"譲":"求", pad+46, 59);
+  x.fillStyle="#4A2357"; x.textAlign="left"; x.font=`800 30px ${font}`;
+  x.fillText(give ? `${list.length}種 / ${list.reduce((a,c)=>a+st(c.no).giveCount,0)}枚` : `${list.length}種`, pad+110, 59);
+  const imgs = await Promise.all(list.map(canvasImg));
+  list.forEach((c,i)=>{
+    const cx=pad+(i%cols)*(tw+gap), cy=head+Math.floor(i/cols)*(th+gap), im=imgs[i];
+    x.save(); rr(x,cx,cy,tw,th,10); x.clip();
+    x.fillStyle="#fff"; x.fillRect(cx,cy,tw,th);
+    if (im){
+      if (im.width>im.height){ // 横長（アクセ）は縦向きに回転
+        x.translate(cx+tw/2, cy+th/2); x.rotate(Math.PI/2); x.drawImage(im,-th/2,-tw/2,th,tw);
+      } else x.drawImage(im,cx,cy,tw,th);
+    } else {
+      x.fillStyle="#F2DDEB"; x.font=`800 ${Math.round(tw*0.22)}px ${font}`; x.textAlign="center"; x.textBaseline="middle";
+      x.fillText(c.no, cx+tw/2, cy+th/2);
+    }
+    x.restore();
+    // レアリティ（左下）
+    const bh=Math.round(tw*0.17), f=Math.round(bh*0.62);
+    x.font=`800 ${f}px ${font}`; const rw=x.measureText(c.rar).width+bh*0.8;
+    const g=x.createLinearGradient(cx+6,0,cx+6+rw,0); g.addColorStop(0,RAR_FILL[c.rar][0]); g.addColorStop(1,RAR_FILL[c.rar][1]);
+    x.fillStyle=g; rr(x,cx+6,cy+th-bh-6,rw,bh,bh/2); x.fill();
+    x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(c.rar, cx+6+rw/2, cy+th-bh/2-6+1);
+    // 枚数（右下・譲のみ）
+    if (give){
+      const t="×"+st(c.no).giveCount; const cw=x.measureText(t).width+bh*0.8;
+      x.fillStyle="#22B8A6"; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
+      x.fillStyle="#fff"; x.fillText(t, cx+tw-cw/2-6, cy+th-bh/2-6+1);
+    }
+  });
+  return cv;
+}
+$("#tradeImg").addEventListener("click", async ()=>{
+  const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
+  toast("画像を作っています…");
+  let blob, url;
+  try{ const cv=await makeTradeImage(list); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
+  catch(e){ console.warn(e); toast("画像を作れませんでした"); return; }
+  const name=`aikatsu_${tradeMode==="give"?"yuzu":"motomu"}_${stamp()}.png`;
+  openSheet(`<h2>${tradeMode==="give"?"譲":"求"}の画像</h2>
+    <img class="tprev" src="${url}" alt="${tradeMode==="give"?"譲":"求"}のカード一覧画像">
+    <p class="note">画像を長押しして「写真に追加」でも保存できます。</p>
+    <div class="btns"><button class="btn primary" id="tiSave">写真に保存</button><button class="btn" id="tiClose">閉じる</button></div>`);
+  $("#tiClose").onclick=closeSheet;
+  $("#tiSave").onclick=async ()=>{
+    const file=new File([blob], name, {type:"image/png"});
+    if (navigator.canShare && navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file]}); return; }catch(e){ if (e.name==="AbortError") return; }
+    }
+    const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast("画像を保存しました");
+  };
+});
+$("#tradeCopy").addEventListener("click", async ()=>{
+  const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
+  const give=tradeMode==="give";
+  const text = (give?"【譲】":"【求】")+"\n"+list.map(c=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${give?" ×"+st(c.no).giveCount:""}`).join("\n");
+  try{ await navigator.clipboard.writeText(text); toast("カード名をコピーしました"); }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); toast("カード名をコピーしました"); }catch(_){ toast("コピーできませんでした"); } ta.remove();
+  }
+});
 function renderAll(){ renderHeader(); renderChips(); renderGrid(); renderHist(); renderTrade(); }
 function refreshCard(no){
   const el = document.querySelector(`.card[data-no="${CSS.escape(no)}"]`); const c = cardByNo(no);
@@ -1168,7 +1262,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-08 r21";
+const APP_VERSION = "2026-10-08 r22";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
