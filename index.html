@@ -554,9 +554,9 @@ function rules(){
   const r = store.rules || {};
   return { give:Object.assign({}, DEFAULT_RULES.give, r.give||{}), want:Object.assign({}, DEFAULT_RULES.want, r.want||{}) };
 }
-function giveFor(c, own, cur){
+function giveFor(c, own, cur, manual){
   const g = rules().give;
-  if (g.mode!=="auto") return Math.min(cur||0, own);               // 手動：所持を超えないようにだけそろえる
+  if (g.mode!=="auto" || manual) return Math.min(cur||0, own);     // 手動／手で変えたカード：所持を超えないようにだけそろえる
   if (c && (g.exIdols.includes(c.idol) || g.exRar.includes(c.rar) || (g.exPara && c.setId==="PA"))) return 0;
   return Math.max(0, own - (g.keep||0));
 }
@@ -570,21 +570,26 @@ function patch(no, p){
   if ("own" in p){
     const c = cardByNo(no), cur = st(no);
     p = Object.assign({}, p);
-    p.giveCount = giveFor(c, p.own, "giveCount" in p ? p.giveCount : cur.giveCount); p.give = p.giveCount>0;
+    p.giveCount = giveFor(c, p.own, "giveCount" in p ? p.giveCount : cur.giveCount, cur.gm); p.give = p.giveCount>0;
     const w = rules().want;
-    if (p.own>0 && w.clearOnOwn) p.want = false;
-    else if (p.own===0 && autoWantMatch(c)) p.want = true;
+    if (!cur.wm){   // 求を手で押したカードは自動で変えない
+      if (p.own>0 && w.clearOnOwn) p.want = false;
+      else if (p.own===0 && autoWantMatch(c)) p.want = true;
+    }
   }
   store.cards[no] = Object.assign({}, st(no), p); save();
 }
-// ルールを全カードに反映（設定を保存したとき）
-function applyRulesAll(){
+// ルールを全カードに反映（設定を保存したとき）。手で譲・求を変えたカード（gm/wm）はそのまま残す
+function applyRulesAll(resetManual){
   const w = rules().want;
   allCards().forEach(c=>{
-    const s = st(c.no), o = {};
-    const g = giveFor(c, s.own, s.giveCount); if (g!==s.giveCount){ o.giveCount=g; o.give=g>0; }
-    if (s.own===0 && autoWantMatch(c) && !s.want) o.want=true;
-    if (s.own>0 && w.clearOnOwn && s.want) o.want=false;
+    let s = st(c.no); const o = {};
+    if (resetManual && (s.gm || s.wm)){ s = Object.assign({}, s); delete s.gm; delete s.wm; store.cards[c.no]=s; }
+    const g = giveFor(c, s.own, s.giveCount, s.gm); if (g!==s.giveCount){ o.giveCount=g; o.give=g>0; }
+    if (!s.wm){
+      if (s.own===0 && autoWantMatch(c) && !s.want) o.want=true;
+      if (s.own>0 && w.clearOnOwn && s.want) o.want=false;
+    }
     if (Object.keys(o).length) store.cards[c.no] = Object.assign({}, s, o);
   });
   save();
@@ -1011,6 +1016,7 @@ function rulesSummary(){
 }
 function openRules(){
   const r = JSON.parse(JSON.stringify(rules()));   // 編集用のコピー（保存するまで反映しない）
+  let resetManual = false;
   const chips = (path, vals) => vals.map(v=>`<button class="opt" data-rt="${path}" data-v="${esc(v)}" aria-pressed="${path.split(".").reduce((o,k)=>o[k],r).includes(v)}">${esc(v)}</button>`).join("");
   const html = () => `<h2>譲・求の自動設定</h2>
     <div class="fsec"><h3>譲</h3><div class="opts">
@@ -1028,7 +1034,8 @@ function openRules(){
     <div class="fsec"><div class="opts">
       <button class="opt" data-rflag="want.para" aria-pressed="${r.want.para}">パラレルも自動で求にする</button>
       <button class="opt" data-rflag="want.clearOnOwn" aria-pressed="${r.want.clearOnOwn}">手に入れたら求を外す</button></div></div>
-    <p class="rnote">保存すると、今のカード全部にこの設定を反映します。そのあと手で押した譲・求は、そのカードの所持枚数が変わるまでそのまま残ります。新しい弾のカードにも、自動の求が付きます。</p>
+    <p class="rnote">保存すると、今のカード全部にこの設定を反映します。カード一覧で手で変えた譲・求は、設定を変えてもそのまま残ります。新しい弾のカードにも、自動の求が付きます。</p>
+    <div class="fsec"><div class="opts"><button class="opt" data-rreset aria-pressed="${resetManual}">手で変えたカードも設定どおりに戻す</button></div></div>
     <div class="fsheet-foot"><button class="btn" data-rcancel>やめる</button><button class="btn primary" data-rsave>保存して反映</button></div>`;
   openSheet(html());
   const sheet=$("#sheet");
@@ -1038,10 +1045,12 @@ function openRules(){
     const rt=t.closest("[data-rt]"); if (rt){ const [a,b]=rt.dataset.rt.split("."), v=rt.dataset.v, arr=r[a][b]; r[a][b]= arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v]; redraw(); return; }
     const rm=t.closest("[data-rmode]"); if (rm){ r.give.mode=rm.dataset.rmode; redraw(); return; }
     const kp=t.closest("[data-keep]"); if (kp){ r.give.keep=Math.min(9,Math.max(0,r.give.keep+(+kp.dataset.keep))); redraw(); return; }
+    if (t.closest("[data-rreset]")){ resetManual=!resetManual; redraw(); return; }
     const rf=t.closest("[data-rflag]"); if (rf){ const [a,b]=rf.dataset.rflag.split("."); r[a][b]=!r[a][b]; redraw(); return; }
     if (t.closest("[data-rcancel]")){ closeSheet(); return; }
     if (t.closest("[data-rsave]")){
-      store.rules = r; applyRulesAll(); closeSheet(); renderAll(); toast("自動設定を保存して反映しました");
+      if (resetManual && !confirm("手で変えた譲・求も、すべて設定どおりに戻します。よろしいですか？")) return;
+      store.rules = r; applyRulesAll(resetManual); closeSheet(); renderAll(); toast("自動設定を保存して反映しました");
     }
   };
 }
@@ -1264,9 +1273,9 @@ document.addEventListener("click", e=>{
   switch(btn.dataset.act){
     case "inc": patch(no,{own:s.own+1}); break;
     case "dec": { const own=Math.max(0,s.own-1), g=Math.min(s.giveCount, own); patch(no,{own, giveCount:g, give:g>0}); break; }
-    case "want": patch(no,{want:!s.want}); break;
-    case "ginc": if (s.giveCount<s.own){ const g=s.giveCount+1; patch(no,{giveCount:g, give:true}); } break;
-    case "gdec": { const g=Math.max(0,s.giveCount-1); patch(no,{giveCount:g, give:g>0}); break; }
+    case "want": patch(no,{want:!s.want, wm:true}); break;                      // 手で押した印（自動設定で上書きしない）
+    case "ginc": if (s.giveCount<s.own){ const g=s.giveCount+1; patch(no,{giveCount:g, give:true, gm:true}); } break;
+    case "gdec": { const g=Math.max(0,s.giveCount-1); patch(no,{giveCount:g, give:g>0, gm:true}); break; }
     case "open": openDetail(no); return;
     case "thumb":
       if (btn.dataset.has==="1") { openDetail(no); return; }
@@ -1597,7 +1606,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-09 r29";
+const APP_VERSION = "2026-10-09 r30";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
