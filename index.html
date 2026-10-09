@@ -185,7 +185,12 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .seg button[data-mode="want"][aria-selected="true"]{background:var(--pink);color:#fff}
 .seg button[data-mode="own"][aria-selected="true"]{background:var(--lav);color:#fff}
 .tcount.own{background:var(--lav)}
-.tacts{display:flex;gap:8px;justify-content:flex-end;margin:-4px 0 12px}
+.tacts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin:-4px 0 12px}
+.kstep{display:inline-flex;align-items:center;background:var(--bg);border-radius:999px;padding:2px}
+.kstep button{border:0;background:var(--surface);width:36px;height:36px;border-radius:50%;font-size:20px;font-weight:800;color:var(--pink)}
+.kstep button:disabled{color:var(--line);background:none}
+.kstep output{min-width:64px;text-align:center;font-weight:800}
+.rnote{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.6}
 .tprev{display:block;width:100%;border-radius:12px;box-shadow:var(--shadow);margin-top:4px}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 10px}
 .titem{min-width:0}
@@ -199,7 +204,7 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .tno{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:1px}
 .ap{font-size:11px;font-weight:800;color:var(--muted);margin-left:auto}
 .ap::before{content:"Ap";font-size:9px;margin-right:1px;color:var(--lav)}
-.rt-r{display:flex;align-items:center;gap:10px}
+.rt-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .calcbtn{border:0;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;padding:5px 11px;font-weight:800;font-size:12px;color:var(--lav)}
 .calcbtn[aria-pressed="true"]{background:linear-gradient(135deg,var(--lav),#C7B3FF);color:#fff}
 .card.sel{box-shadow:0 0 0 3px var(--lav),var(--shadow)}
@@ -228,7 +233,8 @@ body.calc-on main{padding-bottom:240px}
 .sheet-bg[hidden]{display:none}
 .sheet{background:var(--surface);width:100%;max-width:520px;max-height:88%;overflow:auto;border-radius:26px 26px 0 0;
   padding:22px 18px calc(18px + env(safe-area-inset-bottom,0px));position:relative}
-.sheet::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:40px;height:4px;border-radius:9px;background:var(--line)}
+.sheet::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:44px;height:5px;border-radius:9px;background:var(--line)}
+.sheet{overscroll-behavior:contain;will-change:transform}
 .sheet h2{margin:0 0 10px;font-size:19px;display:flex;align-items:center;gap:8px;font-family:"Mochiy Pop One","M PLUS Rounded 1c",sans-serif;font-weight:400;color:var(--pink-deep)}
 label.f{display:block;font-size:12px;font-weight:800;color:var(--muted);margin:12px 0 4px}
 .sheet input[type=text],.sheet select,.sheet textarea{width:100%;border:2px solid var(--line);border-radius:14px;padding:9px 12px;background:var(--bg)}
@@ -371,7 +377,7 @@ a.btn{text-decoration:none;display:inline-block}
       <button class="fbtn" id="filterBtn" aria-label="絞り込み"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>絞り込み<span class="badge" id="fCount" hidden></span></button>
     </div>
     <div class="active" id="activeFilters"></div>
-    <div class="row-tools"><span id="hitCount"></span><span class="rt-r"><button class="calcbtn" id="calcBtn" aria-pressed="false">✦ コーデAp計算</button><span id="sortLabel"></span></span></div>
+    <div class="row-tools"><span id="hitCount"></span><span class="rt-r"><button class="calcbtn" id="gridImg">画像で保存</button><button class="calcbtn" id="calcBtn" aria-pressed="false">✦ コーデAp計算</button><span id="sortLabel"></span></span></div>
     <div class="grid" id="grid"></div>
     <div class="addrow"><button class="btn small ghost" id="addCustom">＋ プロモなどカードを追加</button></div>
   </section>
@@ -386,6 +392,7 @@ a.btn{text-decoration:none;display:inline-block}
     <div class="tacts">
       <button class="btn small primary" id="tradeImg">画像で保存</button>
       <button class="btn small ghost" id="tradeCopy">カード名をコピー</button>
+      <button class="btn small ghost" id="rulesBtn">⚙ 自動設定</button>
     </div>
     <div class="tgrid" id="tradeGrid"></div>
   </section>
@@ -517,7 +524,61 @@ const st = no => {
   if (s && s.giveCount===undefined) b.giveCount = s.give ? 1 : 0;
   return b;
 };
-function patch(no, p){ store.cards[no] = Object.assign({}, st(no), p); save(); }
+/* ---------- 譲・求の自動ルール（store.rules に保存。ログインしていれば同期される） ---------- */
+const DEFAULT_RULES = {
+  give:{ mode:"auto", keep:1, exIdols:[], exRar:[], exPara:false },   // 自動なら「所持−残す枚数」を譲に
+  want:{ idols:[], rar:[], para:true, clearOnOwn:true }              // このアイドル／レアの未所持カードを自動で求に
+};
+function rules(){
+  const r = store.rules || {};
+  return { give:Object.assign({}, DEFAULT_RULES.give, r.give||{}), want:Object.assign({}, DEFAULT_RULES.want, r.want||{}) };
+}
+function giveFor(c, own, cur){
+  const g = rules().give;
+  if (g.mode!=="auto") return Math.min(cur||0, own);               // 手動：所持を超えないようにだけそろえる
+  if (c && (g.exIdols.includes(c.idol) || g.exRar.includes(c.rar) || (g.exPara && c.setId==="PA"))) return 0;
+  return Math.max(0, own - (g.keep||0));
+}
+function autoWantMatch(c){
+  const w = rules().want; if (!c) return false;
+  if (c.setId==="PA" && !w.para) return false;
+  return w.idols.includes(c.idol) || w.rar.includes(c.rar);
+}
+function patch(no, p){
+  // 所持枚数が変わったときだけ、ルールで譲・求をそろえる（譲・求を手で押したときはそのまま）
+  if ("own" in p){
+    const c = cardByNo(no), cur = st(no);
+    p = Object.assign({}, p);
+    p.giveCount = giveFor(c, p.own, "giveCount" in p ? p.giveCount : cur.giveCount); p.give = p.giveCount>0;
+    const w = rules().want;
+    if (p.own>0 && w.clearOnOwn) p.want = false;
+    else if (p.own===0 && autoWantMatch(c)) p.want = true;
+  }
+  store.cards[no] = Object.assign({}, st(no), p); save();
+}
+// ルールを全カードに反映（設定を保存したとき）
+function applyRulesAll(){
+  const w = rules().want;
+  allCards().forEach(c=>{
+    const s = st(c.no), o = {};
+    const g = giveFor(c, s.own, s.giveCount); if (g!==s.giveCount){ o.giveCount=g; o.give=g>0; }
+    if (s.own===0 && autoWantMatch(c) && !s.want) o.want=true;
+    if (s.own>0 && w.clearOnOwn && s.want) o.want=false;
+    if (Object.keys(o).length) store.cards[c.no] = Object.assign({}, s, o);
+  });
+  save();
+}
+// 新しく追加されたカード（まだ一度も触っていないもの）にだけ、自動の求を付ける
+function applyAutoWantToNew(){
+  let n=0; allCards().forEach(c=>{ if (!store.cards[c.no] && autoWantMatch(c)){ store.cards[c.no]=Object.assign({}, st(c.no), {want:true}); n++; } });
+  return n>0;
+}
+// 譲の自動化を始める前のデータを、一度だけ「所持−1枚」にそろえる
+function migrateAutoGive(){
+  if (store.autoGive) return false;
+  Object.keys(store.cards).forEach(no=>{ const s=st(no); const g=Math.max(0,s.own-1); store.cards[no]=Object.assign({}, store.cards[no], {giveCount:g, give:g>0}); });
+  store.autoGive = 1; return true;
+}
 
 /* ---------- カードマスタ更新時の安全策 ---------- */
 // マスタの版が変わったら、更新前のデータを丸ごと1世代コピーしておく（データ自体は一切書き換えない）
@@ -772,6 +833,53 @@ function renderTrade(){
 }
 document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
 
+/* ---------- 譲・求の自動設定画面 ---------- */
+const IDOLS = () => [...new Set(BASE.map(c=>c.idol).filter(Boolean))];
+function rulesSummary(){
+  const r=rules(), g=r.give, w=r.want, a=[];
+  a.push(g.mode==="auto" ? `譲：自動（${g.keep}枚残す）` : "譲：手動");
+  const ex=[...g.exIdols, ...g.exRar, ...(g.exPara?["パラレル"]:[])]; if (g.mode==="auto" && ex.length) a.push(`譲らない：${ex.join("・")}`);
+  const ww=[...w.idols, ...w.rar]; a.push(ww.length ? `自動で求：${ww.join("・")}` : "自動で求：なし");
+  return a.join(" ／ ");
+}
+function openRules(){
+  const r = JSON.parse(JSON.stringify(rules()));   // 編集用のコピー（保存するまで反映しない）
+  const chips = (path, vals) => vals.map(v=>`<button class="opt" data-rt="${path}" data-v="${esc(v)}" aria-pressed="${path.split(".").reduce((o,k)=>o[k],r).includes(v)}">${esc(v)}</button>`).join("");
+  const html = () => `<h2>譲・求の自動設定</h2>
+    <div class="fsec"><h3>譲</h3><div class="opts">
+      <button class="opt" data-rmode="auto" aria-pressed="${r.give.mode==="auto"}">自動で譲にする</button>
+      <button class="opt" data-rmode="manual" aria-pressed="${r.give.mode!=="auto"}">自動にしない（手で入れる）</button></div></div>
+    ${r.give.mode==="auto" ? `
+    <div class="fsec"><h3>手元に残す枚数</h3>
+      <div class="kstep"><button data-keep="-1" aria-label="減らす" ${r.give.keep<=0?"disabled":""}>−</button><output>${r.give.keep}枚</output><button data-keep="1" aria-label="増やす" ${r.give.keep>=9?"disabled":""}>＋</button></div>
+      <p class="rnote">所持がこの枚数を超えた分が、自動で譲になります（例：3枚持っていて1枚残す → 譲2）</p></div>
+    <div class="fsec"><h3>譲らないアイドル（全部手元に残す）</h3><div class="opts">${chips("give.exIdols", IDOLS())}</div></div>
+    <div class="fsec"><h3>譲らないレアリティ</h3><div class="opts">${chips("give.exRar", ["ER","PR","R","N"])}</div></div>
+    <div class="fsec"><div class="opts"><button class="opt" data-rflag="give.exPara" aria-pressed="${r.give.exPara}">パラレルは譲らない</button></div></div>` : ""}
+    <div class="fsec"><h3>求：持っていないカードを自動で求にするアイドル</h3><div class="opts">${chips("want.idols", IDOLS())}</div></div>
+    <div class="fsec"><h3>求：自動で求にするレアリティ</h3><div class="opts">${chips("want.rar", ["ER","PR","R","N"])}</div></div>
+    <div class="fsec"><div class="opts">
+      <button class="opt" data-rflag="want.para" aria-pressed="${r.want.para}">パラレルも自動で求にする</button>
+      <button class="opt" data-rflag="want.clearOnOwn" aria-pressed="${r.want.clearOnOwn}">手に入れたら求を外す</button></div></div>
+    <p class="rnote">保存すると、今のカード全部にこの設定を反映します。そのあと手で押した譲・求は、そのカードの所持枚数が変わるまでそのまま残ります。新しい弾のカードにも、自動の求が付きます。</p>
+    <div class="fsheet-foot"><button class="btn" data-rcancel>やめる</button><button class="btn primary" data-rsave>保存して反映</button></div>`;
+  openSheet(html());
+  const sheet=$("#sheet");
+  const redraw=()=>{ const t=sheet.scrollTop; sheet.innerHTML=html(); sheet.scrollTop=t; };
+  sheet.onclick = e=>{
+    const t=e.target;
+    const rt=t.closest("[data-rt]"); if (rt){ const [a,b]=rt.dataset.rt.split("."), v=rt.dataset.v, arr=r[a][b]; r[a][b]= arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v]; redraw(); return; }
+    const rm=t.closest("[data-rmode]"); if (rm){ r.give.mode=rm.dataset.rmode; redraw(); return; }
+    const kp=t.closest("[data-keep]"); if (kp){ r.give.keep=Math.min(9,Math.max(0,r.give.keep+(+kp.dataset.keep))); redraw(); return; }
+    const rf=t.closest("[data-rflag]"); if (rf){ const [a,b]=rf.dataset.rflag.split("."); r[a][b]=!r[a][b]; redraw(); return; }
+    if (t.closest("[data-rcancel]")){ closeSheet(); return; }
+    if (t.closest("[data-rsave]")){
+      store.rules = r; applyRulesAll(); closeSheet(); renderAll(); toast("自動設定を保存して反映しました");
+    }
+  };
+}
+$("#rulesBtn").addEventListener("click", openRules);
+
 /* ---------- 譲・求を画像で保存／カード名をコピー ---------- */
 function tradeList(){
   const byNo = (a,b)=> a.no.localeCompare(b.no, "ja", {numeric:true});
@@ -787,8 +895,7 @@ async function canvasImg(c){
 }
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"]};
-async function makeTradeImage(list){
-  const M = TMODE[tradeMode];
+async function makeTradeImage(list, M=TMODE[tradeMode]){
   const cols = list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6;
   const W=1080, pad=36, gap=16, head=110;
   const tw=Math.floor((W-pad*2-gap*(cols-1))/cols), th=Math.round(tw*670/460);
@@ -796,7 +903,7 @@ async function makeTradeImage(list){
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const x=cv.getContext("2d");
   x.fillStyle="#FFF4FA"; x.fillRect(0,0,W,H);
   const font = '"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
-  x.font=`800 34px ${font}`; const lw=Math.max(92, x.measureText(M.label).width+48);
+  x.font=`800 ${M.label.length>8?26:34}px ${font}`; const lw=Math.min(W-pad*2-260, Math.max(92, x.measureText(M.label).width+48));
   x.fillStyle = M.color; rr(x,pad,30,lw,56,28); x.fill();
   x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(M.label, pad+lw/2, 59);
   x.fillStyle="#4A2357"; x.textAlign="left"; x.font=`800 30px ${font}`;
@@ -822,7 +929,7 @@ async function makeTradeImage(list){
     x.fillStyle=g; rr(x,cx+6,cy+th-bh-6,rw,bh,bh/2); x.fill();
     x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(c.rar, cx+6+rw/2, cy+th-bh/2-6+1);
     // 枚数（右下・譲と所持）
-    if (M.count){
+    if (M.count && !(M.hideZero && !M.count(st(c.no)))){
       const t="×"+M.count(st(c.no)); const cw=x.measureText(t).width+bh*0.8;
       x.fillStyle=M.color; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
       x.fillStyle="#fff"; x.fillText(t, cx+tw-cw/2-6, cy+th-bh/2-6+1);
@@ -830,15 +937,15 @@ async function makeTradeImage(list){
   });
   return cv;
 }
-$("#tradeImg").addEventListener("click", async ()=>{
-  const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
+async function openImageSheet(list, M){
+  if (!list.length){ toast("カードがまだありません"); return; }
   toast("画像を作っています…");
   let blob, url;
-  try{ const cv=await makeTradeImage(list); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
+  try{ const cv=await makeTradeImage(list, M); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
   catch(e){ console.warn(e); toast("画像を作れませんでした"); return; }
-  const M=TMODE[tradeMode], name=`aikatsu_${M.slug}_${stamp()}.png`;
-  openSheet(`<h2>${M.label}の画像</h2>
-    <img class="tprev" src="${url}" alt="${M.label}のカード一覧画像">
+  const name=`aikatsu_${M.slug}_${stamp()}.png`;
+  openSheet(`<h2>${esc(M.label)}の画像</h2>
+    <img class="tprev" src="${url}" alt="${esc(M.label)}のカード一覧画像">
     <p class="note">画像を長押しして「写真に追加」でも保存できます。</p>
     <div class="btns"><button class="btn primary" id="tiSave">写真に保存</button><button class="btn" id="tiClose">閉じる</button></div>`);
   $("#tiClose").onclick=closeSheet;
@@ -849,6 +956,14 @@ $("#tradeImg").addEventListener("click", async ()=>{
     }
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast("画像を保存しました");
   };
+}
+$("#tradeImg").addEventListener("click", ()=>openImageSheet(tradeList(), TMODE[tradeMode]));
+// カードタブ：今の絞り込み・検索・並び順のまま画像にする（枚数は所持枚数）
+$("#gridImg").addEventListener("click", ()=>{
+  const list = sorted(allCards().filter(matches));
+  const parts = [...document.querySelectorAll("#activeFilters .apill:not(.clear)")].map(b=>b.firstChild.textContent.trim());
+  if (ui.q.trim()) parts.unshift(`「${ui.q.trim()}」`);
+  openImageSheet(list, {label: parts.length ? parts.join("・") : "カード", slug:"cards", color:"#FF5CA8", count:s=>s.own, hideZero:true});
 });
 $("#tradeCopy").addEventListener("click", async ()=>{
   const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
@@ -1002,8 +1117,36 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 /* ---------- sheet ---------- */
-function openSheet(html){ $("#sheet").innerHTML=html; $("#sheetBg").hidden=false; const f=$("#sheet").querySelector("input,select,button"); f&&f.focus(); }
-function closeSheet(){ $("#sheetBg").hidden=true; $("#sheet").onclick=null; renderChips(); renderGrid(); }
+function openSheet(html){ const s=$("#sheet"); s.style.transform=""; s.style.transition=""; $("#sheetBg").style.opacity=""; s.innerHTML=html; s.scrollTop=0; $("#sheetBg").hidden=false; }
+function closeSheet(){ const s=$("#sheet"); $("#sheetBg").hidden=true; s.onclick=null; s.style.transform=""; s.style.transition=""; $("#sheetBg").style.opacity=""; renderChips(); renderGrid(); }
+// 下にスワイプして閉じる（いちばん上までスクロールしているとき、または上のつまみ部分から）
+(function(){
+  const s=$("#sheet"), bg=$("#sheetBg"); let d=null;
+  s.addEventListener("touchstart", e=>{
+    if (e.touches.length!==1 || e.target.closest("input,textarea,select")) return;
+    const y=e.touches[0].clientY, onHandle = y - s.getBoundingClientRect().top < 44;
+    if (s.scrollTop>0 && !onHandle) return;
+    d={y0:y, t0:Date.now(), dy:0, on:false, handle:onHandle};
+  }, {passive:true});
+  s.addEventListener("touchmove", e=>{
+    if (!d) return;
+    d.dy = e.touches[0].clientY - d.y0;
+    if (!d.on){
+      if (d.dy>6 && (s.scrollTop<=0 || d.handle)){ d.on=true; s.style.transition="none"; }
+      else if (d.dy<-4){ d=null; return; } else return;
+    }
+    e.preventDefault();
+    const dy=Math.max(0,d.dy); s.style.transform=`translateY(${dy}px)`; bg.style.opacity=String(Math.max(0.3, 1-dy/500));
+  }, {passive:false});
+  const end=()=>{
+    if (!d) return; const dd=d; d=null; if (!dd.on) return;
+    const v = dd.dy / Math.max(1, Date.now()-dd.t0);
+    s.style.transition="transform .2s ease";
+    if (dd.dy>120 || (dd.dy>40 && v>0.5)){ s.style.transform="translateY(100%)"; bg.style.transition="opacity .2s"; bg.style.opacity="0"; setTimeout(()=>{ bg.style.transition=""; closeSheet(); },200); }
+    else { s.style.transform=""; bg.style.opacity=""; }
+  };
+  s.addEventListener("touchend", end); s.addEventListener("touchcancel", end);
+})();
 $("#sheetBg").addEventListener("click", e=>{ if (e.target.id==="sheetBg") closeSheet(); });
 document.addEventListener("keydown", e=>{ if (e.key==="Escape" && !$("#sheetBg").hidden) closeSheet(); });
 
@@ -1275,7 +1418,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-08 r24";
+const APP_VERSION = "2026-10-09 r28";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -1292,6 +1435,7 @@ $("#gearBtn").addEventListener("click", ()=>{
   const owned = allCards().filter(c=>st(c.no).own>0).length;
   openSheet(`<h2>設定とバックアップ</h2>
     <p class="note" style="margin-top:0">${cloud.user?"データはクラウドとこの端末の両方に保存されています。":"データはこのブラウザの中だけに保存されています。機種変更やブラウザのデータ削除で消えるので、ログインして同期するか、ときどきバックアップしてね。"}</p>
+    <div class="set-sec"><h3>譲・求の自動設定</h3><p>${esc(rulesSummary())}</p><button class="btn small" id="openRules">設定を開く</button></div>
     <div class="set-sec" id="cloudSec">${cloudSecHtml()}</div>
     <div class="set-sec">
       <h3>バックアップ</h3>
@@ -1322,6 +1466,7 @@ $("#gearBtn").addEventListener("click", ()=>{
     <p class="note">アプリの版：${APP_VERSION}</p>
     <div class="btns"><button class="btn" id="bkClose">閉じる</button></div>`);
   $("#bkClose").onclick = closeSheet;
+  $("#openRules").onclick = openRules;
   const sr=$("#snapRestore"); if (sr) sr.onclick = ()=>{
     let sn; try{ sn=JSON.parse(localStorage.getItem(LS_KEY+":snapshot")); }catch(e){}
     if (!sn){ toast("戻せるデータがありません"); return; }
@@ -1382,7 +1527,7 @@ function stableStr(v){
 function toCloudStore(s){ const c=JSON.parse(JSON.stringify(s)); c.qrmap=Object.entries(s.qrmap||{}).map(([q,n])=>({q,n})); return c; }
 function fromCloudStore(c){ c=c||{};
   const qm = Array.isArray(c.qrmap) ? Object.fromEntries(c.qrmap.map(e=>Array.isArray(e)?e:[e.q,e.n]).filter(e=>e[0])) : Object.assign({},c.qrmap||{});
-  return {cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:qm}; }
+  const o={cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:qm}; if (c.autoGive) o.autoGive=c.autoGive; if (c.rules) o.rules=c.rules; return o; }
 function monthKey(t){ const d=new Date(t); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 function groupMonths(list){ const m={}; list.forEach(s=>{ const k=monthKey(s.t); (m[k]=m[k]||[]).push(JSON.parse(JSON.stringify(s))); }); return m; }
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
@@ -1407,7 +1552,7 @@ async function cloudInit(){
   renderCloud();
 }
 function applyRemote(rs, rscans){
-  store = fromCloudStore(rs);
+  store = fromCloudStore(rs); if (migrateAutoGive()) cloudSchedule();
   scans = (rscans||[]).slice().sort((a,b)=>a.t-b.t);
   saveLocal(); renderAll(); if (typeof renderRecent==="function") renderRecent();
 }
@@ -1434,7 +1579,7 @@ async function cloudStart(){
       if (s.metadata.hasPendingWrites || !s.exists) return;
       const j = stableStr(toCloudStore(fromCloudStore(s.data().store)));
       if (j===cloud.lastStore) return;
-      cloud.lastStore=j; store=fromCloudStore(s.data().store); saveLocal(); renderAll();
+      cloud.lastStore=j; store=fromCloudStore(s.data().store); if (migrateAutoGive()) cloudSchedule(); saveLocal(); renderAll();
     }));
     cloud.unsub.push(uref().collection("scans").onSnapshot(qs=>{
       if (qs.metadata.hasPendingWrites) return;
@@ -1533,6 +1678,7 @@ document.addEventListener("click", async e=>{
 })();
 
 /* ---------- boot ---------- */
+if (migrateAutoGive() | applyAutoWantToNew()) saveLocal();
 renderAll();
 openIdb().then(()=>renderGrid());
 cloudInit();
