@@ -185,7 +185,27 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .seg button[data-mode="want"][aria-selected="true"]{background:var(--pink);color:#fff}
 .seg button[data-mode="own"][aria-selected="true"]{background:var(--lav);color:#fff}
 .tcount.own{background:var(--lav)}
-.tacts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin:-4px 0 12px}
+#tradeGrid .tgrid{margin-bottom:18px}
+.tgh{display:flex;align-items:baseline;gap:8px;margin:4px 2px 10px;font-size:17px;font-family:"Mochiy Pop One","M PLUS Rounded 1c",sans-serif;font-weight:400;color:var(--ink)}
+.tgh::before{content:"";width:6px;height:18px;border-radius:3px;background:var(--pink);align-self:center}
+.tgh small{font-family:"M PLUS Rounded 1c",sans-serif;font-size:12px;font-weight:800;color:var(--muted)}
+.titem{cursor:pointer;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.titem img{-webkit-user-drag:none;pointer-events:none}
+.tplace{opacity:.25}
+.tghost{position:fixed;z-index:80;pointer-events:none;transform:scale(1.08) rotate(-2deg);filter:drop-shadow(0 12px 20px rgba(74,35,87,.35));transition:transform .12s}
+body.dragging{-webkit-user-select:none;user-select:none}
+body.dragging .tgrid{outline:2px dashed var(--line);outline-offset:6px;border-radius:12px}
+.tdrop{grid-column:1/-1;border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;font-size:12px;font-weight:800;color:var(--muted)}
+.dhint{font-size:11px;color:var(--muted);margin:-4px 2px 8px;text-align:right}
+#groupBtn[hidden]{display:none}
+.gbox{background:var(--bg);border-radius:16px;padding:10px 12px;margin-top:10px}
+.grow{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.grow input{flex:1;min-width:0;border:2px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--surface);font-weight:800;font-size:16px}
+.grow input:focus{border-color:var(--pink);outline:none}
+.gdel{border:0;background:none;color:#D92D4F;font-weight:800;font-size:13px}
+.gpick .opt{font-size:15px;padding:9px 18px}
+.tacts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin:-4px 0 12px}
+.tacts .btn.small{padding:7px 12px}
 .kstep{display:inline-flex;align-items:center;background:var(--bg);border-radius:999px;padding:2px}
 .kstep button{border:0;background:var(--surface);width:36px;height:36px;border-radius:50%;font-size:20px;font-weight:800;color:var(--pink)}
 .kstep button:disabled{color:var(--line);background:none}
@@ -390,11 +410,12 @@ a.btn{text-decoration:none;display:inline-block}
       <button data-mode="own" aria-selected="false">所持 <b id="ownN">0</b></button>
     </div>
     <div class="tacts">
-      <button class="btn small primary" id="tradeImg">画像で保存</button>
-      <button class="btn small ghost" id="tradeCopy">カード名をコピー</button>
-      <button class="btn small ghost" id="rulesBtn">⚙ 自動設定</button>
+      <button class="btn small primary" id="tradeImg">画像保存</button>
+      <button class="btn small ghost" id="tradeCopy">名前コピー</button>
+      <button class="btn small ghost" id="groupBtn">カテゴリ</button>
+      <button class="btn small ghost" id="rulesBtn">自動設定</button>
     </div>
-    <div class="tgrid" id="tradeGrid"></div>
+    <div id="tradeGrid"></div>
   </section>
 
   <!-- SCAN -->
@@ -816,6 +837,31 @@ const TMODE = {
   want:{label:"求",  slug:"motomu", color:"#FF5CA8", has:s=>s.want,        count:null},
   own: {label:"所持", slug:"shoji",  color:"#A98BFF", has:s=>s.own>0,       count:s=>s.own},
 };
+/* ---------- 譲・求のカテゴリ（レアリティで自動振り分け＋カードごとに移動可） ---------- */
+const GDEF = () => [{id:"c1",title:"A",rar:["ER","PR"]},{id:"c2",title:"B",rar:["R","N"]}];
+function groups(mode){ const g=(store.groups||{})[mode]; return (Array.isArray(g)&&g.length) ? g : GDEF(); }
+const OVR = {give:"gg", want:"wg"};   // カードごとの振り分け（store.cards[no].gg / .wg にカテゴリidを保存）
+function groupOf(mode, c){
+  const gs=groups(mode), o=st(c.no)[OVR[mode]];
+  if (o){ const g=gs.find(x=>x.id===o); if (g) return g; }
+  return gs.find(x=>(x.rar||[]).includes(c.rar)) || gs[gs.length-1];
+}
+// 手で並べ替えた順番（store.order[mode] = カード番号の並び）。並べていないカードは番号順で後ろに付く
+function byOrder(mode, list){
+  const ord=((store.order||{})[mode])||[], pos=new Map(ord.map((n,i)=>[n,i]));
+  return list.slice().sort((a,b)=>{ const pa=pos.has(a.no)?pos.get(a.no):1e9, pb=pos.has(b.no)?pos.get(b.no):1e9;
+    return pa-pb || a.no.localeCompare(b.no,"ja",{numeric:true}); });
+}
+function sectionsOf(mode, list, keepEmpty){
+  list = byOrder(mode, list);
+  if (!OVR[mode]) return [{title:"", cards:list}];
+  return groups(mode).map(g=>({id:g.id, title:g.title, cards:list.filter(c=>groupOf(mode,c).id===g.id)})).filter(s=>keepEmpty || s.cards.length);
+}
+function tItem(c, M){ const s=st(c.no), n=displayName(c);
+  return `<div class="titem" data-tno="${esc(c.no)}"><div class="tthumb" data-tthumb="${esc(c.no)}"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span>
+    ${M.count?`<span class="tcount ${tradeMode}">×${M.count(s)}</span>`:""}</div>
+    <div class="tname">${n?esc(n):esc(c.no)}</div>
+    <div class="tno">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span></div></div>`; }
 function renderTrade(){
   const byNo = (a,b)=> a.no.localeCompare(b.no, "ja", {numeric:true});
   const lists = {}; Object.keys(TMODE).forEach(k=>{ lists[k]=allCards().filter(c=>TMODE[k].has(st(c.no))).sort(byNo); });
@@ -823,15 +869,136 @@ function renderTrade(){
   const M = TMODE[tradeMode];
   document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===tradeMode));
   const list = lists[tradeMode];
-  $("#tradeGrid").innerHTML = list.length ? list.map(c=>{ const s=st(c.no), n=displayName(c);
-    return `<div class="titem"><div class="tthumb" data-tthumb="${esc(c.no)}"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span>
-      ${M.count?`<span class="tcount ${tradeMode}">×${M.count(s)}</span>`:""}</div>
-      <div class="tname">${n?esc(n):esc(c.no)}</div>
-      <div class="tno">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span></div></div>`; }).join("")
-    : `<div class="empty" style="grid-column:1/-1">${({give:"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます",want:"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます",own:"持っているカードはまだありません。<br>カード一覧の「＋」かQR読み込みで登録すると、ここに並びます"})[tradeMode]}</div>`;
+  $("#groupBtn").hidden = !OVR[tradeMode];
+  $("#tradeGrid").innerHTML = list.length ? `<p class="dhint">長押しでドラッグして並べ替え${OVR[tradeMode]?"・別のカテゴリにも移せます":""}</p>` + sectionsOf(tradeMode, list, true).map(sec=>
+      `${sec.title?`<h3 class="tgh">${esc(sec.title)}<small>${sec.cards.length}種</small></h3>`:""}<div class="tgrid" data-sec="${esc(sec.id||"")}">${sec.cards.map(c=>tItem(c,M)).join("")||`<div class="tdrop">ここにドラッグで移動</div>`}</div>`).join("")
+    : `<div class="empty">${({give:"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます",want:"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます",own:"持っているカードはまだありません。<br>カード一覧の「＋」かQR読み込みで登録すると、ここに並びます"})[tradeMode]}</div>`;
   document.querySelectorAll("[data-tthumb]").forEach(async el=>{ const r=await imgSrc(el.dataset.tthumb); if(r){ el.insertAdjacentHTML("afterbegin",imgTag(r)); el.classList.add("has"); } });
 }
 document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
+
+/* ---------- 長押しドラッグで並べ替え（スマホのホーム画面のアイコン移動のような操作） ---------- */
+(function(){
+  const root=$("#tradeGrid"); let lp=null, dg=null, justDragged=false, raf=0;
+  const pt = e => e.touches ? e.touches[0] : e;
+  function start(e){
+    const it=e.target.closest(".titem"); if (!it) return;
+    const p=pt(e); lp={it, x:p.clientX, y:p.clientY, t:setTimeout(()=>begin(it, lp.x, lp.y), 380)};
+  }
+  function begin(it, x, y){
+    const r=it.getBoundingClientRect();
+    const gh=it.cloneNode(true); gh.classList.add("tghost"); gh.style.width=r.width+"px"; gh.style.left=r.left+"px"; gh.style.top=r.top+"px";
+    document.body.appendChild(gh); it.classList.add("tplace");
+    dg={it, gh, dx:x-r.left, dy:y-r.top, x, y}; lp=null;
+    document.body.classList.add("dragging"); if (navigator.vibrate) navigator.vibrate(15);
+    tick();
+  }
+  function tick(){ // 画面の端に近づいたら自動スクロール
+    if (!dg) return;
+    const edge=70, vh=innerHeight;
+    if (dg.y<edge) scrollBy(0,-Math.ceil((edge-dg.y)/5)); else if (dg.y>vh-edge) scrollBy(0,Math.ceil((dg.y-(vh-edge))/5));
+    place(dg.x, dg.y); raf=requestAnimationFrame(tick);
+  }
+  function place(x,y){
+    const el=document.elementFromPoint(x,y); if (!el) return;
+    const over=el.closest(".titem"), grid=el.closest(".tgrid");
+    if (over && over!==dg.it && root.contains(over)){
+      const r=over.getBoundingClientRect(), after = x > r.left + r.width/2;
+      const ref = after ? over.nextSibling : over;
+      if (ref!==dg.it && dg.it.nextSibling!==ref) over.parentNode.insertBefore(dg.it, ref);
+    } else if (grid && root.contains(grid) && !over && grid!==dg.it.parentNode){
+      const dz=grid.querySelector(".tdrop"); if (dz) dz.remove(); grid.appendChild(dg.it);
+    }
+  }
+  function move(e){
+    if (lp){ const p=pt(e); if (Math.abs(p.clientX-lp.x)>8 || Math.abs(p.clientY-lp.y)>8){ clearTimeout(lp.t); lp=null; } return; }
+    if (!dg) return;
+    e.preventDefault();
+    const p=pt(e); dg.x=p.clientX; dg.y=p.clientY;
+    dg.gh.style.left=(dg.x-dg.dx)+"px"; dg.gh.style.top=(dg.y-dg.dy)+"px";
+  }
+  function end(){
+    if (lp){ clearTimeout(lp.t); lp=null; }
+    if (!dg) return;
+    cancelAnimationFrame(raf);
+    const d=dg; dg=null; d.gh.remove(); d.it.classList.remove("tplace"); document.body.classList.remove("dragging");
+    justDragged=true; setTimeout(()=>justDragged=false, 50);
+    // 画面の並びをそのまま保存。別カテゴリに置いたカードは、そのカテゴリに振り分け
+    const mode=tradeMode, ord=[];
+    root.querySelectorAll(".tgrid").forEach(g=>g.querySelectorAll(".titem").forEach(t=>{
+      ord.push(t.dataset.tno);
+      if (OVR[mode] && g.dataset.sec){ const c=cardByNo(t.dataset.tno);
+        if (c && groupOf(mode,c).id!==g.dataset.sec){ const o={}; o[OVR[mode]]=g.dataset.sec; store.cards[c.no]=Object.assign({}, st(c.no), o); } }
+    }));
+    const prev=((store.order||{})[mode])||[]; ord.push(...prev.filter(n=>!ord.includes(n)));
+    store.order=Object.assign({}, store.order||{}); store.order[mode]=ord;
+    save(); renderTrade();
+  }
+  root.addEventListener("touchstart", start, {passive:true});
+  root.addEventListener("touchmove", move, {passive:false});
+  root.addEventListener("touchend", end); root.addEventListener("touchcancel", end);
+  root.addEventListener("mousedown", e=>{ if (e.button===0) start(e); });
+  addEventListener("mousemove", e=>{ if (lp||dg) move(e); });
+  addEventListener("mouseup", end);
+  root.addEventListener("contextmenu", e=>{ if (e.target.closest(".titem")) e.preventDefault(); });
+  root.addEventListener("click", e=>{ if (justDragged){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+})();
+$("#tradeGrid").addEventListener("click", e=>{
+  const it=e.target.closest("[data-tno]"); if (!it || !OVR[tradeMode]) return;
+  const no=it.dataset.tno, c=cardByNo(no), key=OVR[tradeMode], cur=st(no)[key];
+  const autoG = groups(tradeMode).find(g=>(g.rar||[]).includes(c.rar)) || groups(tradeMode).slice(-1)[0];
+  openSheet(`<h2>${esc(displayName(c)||c.no)}</h2>
+    <p class="rnote" style="margin-top:0">${TMODE[tradeMode].label}のどのカテゴリに入れる？</p>
+    <div class="opts gpick">${groups(tradeMode).map(g=>`<button class="opt" data-gid="${esc(g.id)}" aria-pressed="${groupOf(tradeMode,c).id===g.id}">${esc(g.title)}</button>`).join("")}</div>
+    <div class="btns"><button class="btn small" data-gid="">レアリティで自動に戻す（${esc(autoG.title)}）</button></div>`);
+  $("#sheet").onclick = ev=>{ const b=ev.target.closest("[data-gid]"); if(!b) return;
+    const o={}; o[key]=b.dataset.gid||""; store.cards[no]=Object.assign({}, st(no), o); if (!b.dataset.gid) delete store.cards[no][key];
+    save(); closeSheet(); renderTrade(); };
+});
+function openGroups(){
+  const mode = OVR[tradeMode] ? tradeMode : "give";
+  let gs = JSON.parse(JSON.stringify(groups(mode)));
+  const PRESETS = {
+    "最求・緩求":[{title:"最求",rar:["ER","PR"]},{title:"緩求",rar:["R","N"]}],
+    "A・B":[{title:"A",rar:["ER","PR"]},{title:"B",rar:["R","N"]}],
+    "A・B・C":[{title:"A",rar:["ER","PR"]},{title:"B",rar:["R"]},{title:"C",rar:["N"]}],
+  };
+  const newId = ()=>"c"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const html = () => `<h2>${TMODE[mode].label}のカテゴリ</h2>
+    <p class="rnote" style="margin-top:0">レアリティで自動に振り分けます。カードをタップすると、1枚ずつ別のカテゴリに移せます。</p>
+    <div class="fsec"><h3>かんたん設定</h3><div class="opts">${Object.keys(PRESETS).map(k=>`<button class="opt" data-preset="${k}">${k}</button>`).join("")}</div></div>
+    ${gs.map((g,i)=>`<div class="gbox">
+      <div class="grow"><input type="text" data-gt="${i}" value="${esc(g.title)}" maxlength="12" aria-label="カテゴリ名">
+        ${gs.length>1?`<button class="gdel" data-gdel="${i}" aria-label="このカテゴリを削除">削除</button>`:""}</div>
+      <div class="opts">${["ER","PR","R","N"].map(r=>`<button class="opt" data-grar="${i}" data-v="${r}" aria-pressed="${(g.rar||[]).includes(r)}">${r}</button>`).join("")}</div>
+    </div>`).join("")}
+    ${gs.length<5?`<div class="btns"><button class="btn small" data-gadd>＋ カテゴリを追加</button></div>`:""}
+    <p class="rnote">どのカテゴリにも入っていないレアリティは、いちばん下のカテゴリに入ります。</p>
+    <div class="btns"><button class="btn small" data-oreset>並び順を番号順に戻す</button></div>
+    <div class="fsheet-foot"><button class="btn" data-gcancel>やめる</button><button class="btn primary" data-gsave>保存</button></div>`;
+  openSheet(html());
+  const sheet=$("#sheet");
+  const redraw=()=>{ const t=sheet.scrollTop; sheet.innerHTML=html(); sheet.scrollTop=t; };
+  sheet.oninput = e=>{ const t=e.target.closest("[data-gt]"); if (t) gs[+t.dataset.gt].title=t.value; };
+  sheet.onclick = e=>{
+    const t=e.target;
+    const p=t.closest("[data-preset]"); if (p){ gs = PRESETS[p.dataset.preset].map((x,i)=>({id:(gs[i]&&gs[i].id)||newId(), title:x.title, rar:x.rar.slice()})); redraw(); return; }
+    const r=t.closest("[data-grar]"); if (r){ const i=+r.dataset.grar, v=r.dataset.v;
+      if (gs[i].rar.includes(v)) gs[i].rar=gs[i].rar.filter(x=>x!==v);
+      else { gs.forEach(g=>g.rar=(g.rar||[]).filter(x=>x!==v)); gs[i].rar.push(v); }   // 1つのレアリティは1つのカテゴリだけ
+      redraw(); return; }
+    const d=t.closest("[data-gdel]"); if (d){ gs.splice(+d.dataset.gdel,1); redraw(); return; }
+    if (t.closest("[data-gadd]")){ gs.push({id:newId(), title:String.fromCharCode(65+gs.length), rar:[]}); redraw(); return; }
+    if (t.closest("[data-gcancel]")){ sheet.oninput=null; closeSheet(); return; }
+    if (t.closest("[data-oreset]")){ if (!confirm("手で並べ替えた順番を、番号順に戻しますか？")) return; store.order=Object.assign({}, store.order||{}); delete store.order[mode]; save(); renderTrade(); toast("並び順を戻しました"); return; }
+    if (t.closest("[data-gsave]")){
+      gs.forEach((g,i)=>{ g.title=(g.title||"").trim() || String.fromCharCode(65+i); });
+      store.groups = Object.assign({}, store.groups||{}); store.groups[mode]=gs;
+      save(); sheet.oninput=null; closeSheet(); renderTrade(); toast("カテゴリを保存しました");
+    }
+  };
+}
+$("#groupBtn").addEventListener("click", openGroups);
 
 /* ---------- 譲・求の自動設定画面 ---------- */
 const IDOLS = () => [...new Set(BASE.map(c=>c.idol).filter(Boolean))];
@@ -895,11 +1062,13 @@ async function canvasImg(c){
 }
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"]};
-async function makeTradeImage(list, M=TMODE[tradeMode]){
+async function makeTradeImage(list, M=TMODE[tradeMode], sections){
+  sections = sections || [{title:"", cards:list}];
   const cols = list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6;
-  const W=1080, pad=36, gap=16, head=110;
+  const W=1080, pad=36, gap=16, head=110, sh=64, sgap=26;
   const tw=Math.floor((W-pad*2-gap*(cols-1))/cols), th=Math.round(tw*670/460);
-  const rows=Math.ceil(list.length/cols), H=head+rows*th+(rows-1)*gap+pad;
+  const secH = sec => (sec.title?sh:0) + Math.ceil(sec.cards.length/cols)*(th+gap) - gap;
+  const H = head + sections.reduce((a,sec)=>a+secH(sec),0) + sgap*(sections.length-1) + pad;
   const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const x=cv.getContext("2d");
   x.fillStyle="#FFF4FA"; x.fillRect(0,0,W,H);
   const font = '"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
@@ -908,40 +1077,49 @@ async function makeTradeImage(list, M=TMODE[tradeMode]){
   x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(M.label, pad+lw/2, 59);
   x.fillStyle="#4A2357"; x.textAlign="left"; x.font=`800 30px ${font}`;
   x.fillText(M.count ? `${list.length}種 / ${list.reduce((a,c)=>a+M.count(st(c.no)),0)}枚` : `${list.length}種`, pad+lw+18, 59);
-  const imgs = await Promise.all(list.map(canvasImg));
-  list.forEach((c,i)=>{
-    const cx=pad+(i%cols)*(tw+gap), cy=head+Math.floor(i/cols)*(th+gap), im=imgs[i];
-    x.save(); rr(x,cx,cy,tw,th,10); x.clip();
-    x.fillStyle="#fff"; x.fillRect(cx,cy,tw,th);
-    if (im){
-      if (im.width>im.height){ // 横長（アクセ）は縦向きに回転
-        x.translate(cx+tw/2, cy+th/2); x.rotate(Math.PI/2); x.drawImage(im,-th/2,-tw/2,th,tw);
-      } else x.drawImage(im,cx,cy,tw,th);
-    } else {
-      x.fillStyle="#F2DDEB"; x.font=`800 ${Math.round(tw*0.22)}px ${font}`; x.textAlign="center"; x.textBaseline="middle";
-      x.fillText(c.no, cx+tw/2, cy+th/2);
+  const imgs = new Map((await Promise.all(list.map(async c=>[c.no, await canvasImg(c)]))));
+  let y0 = head;
+  sections.forEach(sec=>{
+    if (sec.title){ // カテゴリ名
+      x.font=`800 30px ${font}`; x.textAlign="left"; x.textBaseline="middle";
+      const tw2=x.measureText(sec.title).width;
+      x.fillStyle=M.color; rr(x,pad,y0+8,10,36,5); x.fill();
+      x.fillStyle="#4A2357"; x.fillText(sec.title, pad+22, y0+27);
+      x.fillStyle="#9A7BA6"; x.font=`800 22px ${font}`; x.fillText(`${sec.cards.length}種`, pad+22+tw2+14, y0+29);
+      y0 += sh;
     }
-    x.restore();
-    // レアリティ（左下）
-    const bh=Math.round(tw*0.17), f=Math.round(bh*0.62);
-    x.font=`800 ${f}px ${font}`; const rw=x.measureText(c.rar).width+bh*0.8;
-    const g=x.createLinearGradient(cx+6,0,cx+6+rw,0); g.addColorStop(0,RAR_FILL[c.rar][0]); g.addColorStop(1,RAR_FILL[c.rar][1]);
-    x.fillStyle=g; rr(x,cx+6,cy+th-bh-6,rw,bh,bh/2); x.fill();
-    x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(c.rar, cx+6+rw/2, cy+th-bh/2-6+1);
-    // 枚数（右下・譲と所持）
-    if (M.count && !(M.hideZero && !M.count(st(c.no)))){
-      const t="×"+M.count(st(c.no)); const cw=x.measureText(t).width+bh*0.8;
-      x.fillStyle=M.color; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
-      x.fillStyle="#fff"; x.fillText(t, cx+tw-cw/2-6, cy+th-bh/2-6+1);
-    }
+    sec.cards.forEach((c,i)=>{
+      const cx=pad+(i%cols)*(tw+gap), cy=y0+Math.floor(i/cols)*(th+gap), im=imgs.get(c.no);
+      x.save(); rr(x,cx,cy,tw,th,10); x.clip();
+      x.fillStyle="#fff"; x.fillRect(cx,cy,tw,th);
+      if (im){
+        if (im.width>im.height){ x.translate(cx+tw/2, cy+th/2); x.rotate(Math.PI/2); x.drawImage(im,-th/2,-tw/2,th,tw); } // 横長（アクセ）は縦向きに
+        else x.drawImage(im,cx,cy,tw,th);
+      } else {
+        x.fillStyle="#F2DDEB"; x.font=`800 ${Math.round(tw*0.22)}px ${font}`; x.textAlign="center"; x.textBaseline="middle";
+        x.fillText(c.no, cx+tw/2, cy+th/2);
+      }
+      x.restore();
+      const bh=Math.round(tw*0.17), f=Math.round(bh*0.62);
+      x.font=`800 ${f}px ${font}`; const rw=x.measureText(c.rar).width+bh*0.8;
+      const g=x.createLinearGradient(cx+6,0,cx+6+rw,0); g.addColorStop(0,RAR_FILL[c.rar][0]); g.addColorStop(1,RAR_FILL[c.rar][1]);
+      x.fillStyle=g; rr(x,cx+6,cy+th-bh-6,rw,bh,bh/2); x.fill();
+      x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(c.rar, cx+6+rw/2, cy+th-bh/2-6+1);
+      if (M.count && !(M.hideZero && !M.count(st(c.no)))){
+        const t="×"+M.count(st(c.no)); const cw=x.measureText(t).width+bh*0.8;
+        x.fillStyle=M.color; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
+        x.fillStyle="#fff"; x.fillText(t, cx+tw-cw/2-6, cy+th-bh/2-6+1);
+      }
+    });
+    y0 += secH(sec) - (sec.title?sh:0) + sgap;
   });
   return cv;
 }
-async function openImageSheet(list, M){
+async function openImageSheet(list, M, sections){
   if (!list.length){ toast("カードがまだありません"); return; }
   toast("画像を作っています…");
   let blob, url;
-  try{ const cv=await makeTradeImage(list, M); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
+  try{ const cv=await makeTradeImage(list, M, sections); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
   catch(e){ console.warn(e); toast("画像を作れませんでした"); return; }
   const name=`aikatsu_${M.slug}_${stamp()}.png`;
   openSheet(`<h2>${esc(M.label)}の画像</h2>
@@ -957,7 +1135,7 @@ async function openImageSheet(list, M){
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast("画像を保存しました");
   };
 }
-$("#tradeImg").addEventListener("click", ()=>openImageSheet(tradeList(), TMODE[tradeMode]));
+$("#tradeImg").addEventListener("click", ()=>{ const l=tradeList(); openImageSheet(l, TMODE[tradeMode], sectionsOf(tradeMode, l)); });
 // カードタブ：今の絞り込み・検索・並び順のまま画像にする（枚数は所持枚数）
 $("#gridImg").addEventListener("click", ()=>{
   const list = sorted(allCards().filter(matches));
@@ -968,7 +1146,8 @@ $("#gridImg").addEventListener("click", ()=>{
 $("#tradeCopy").addEventListener("click", async ()=>{
   const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
   const M=TMODE[tradeMode];
-  const text = `【${M.label}】\n`+list.map(c=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${M.count?" ×"+M.count(st(c.no)):""}`).join("\n");
+  const line = c=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${M.count?" ×"+M.count(st(c.no)):""}`;
+  const text = `【${M.label}】\n` + sectionsOf(tradeMode, list).map(sec=>(sec.title?`＜${sec.title}＞\n`:"")+sec.cards.map(line).join("\n")).join("\n\n");
   try{ await navigator.clipboard.writeText(text); toast("カード名をコピーしました"); }
   catch(e){
     const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
@@ -1418,7 +1597,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-09 r28";
+const APP_VERSION = "2026-10-09 r29";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -1527,7 +1706,7 @@ function stableStr(v){
 function toCloudStore(s){ const c=JSON.parse(JSON.stringify(s)); c.qrmap=Object.entries(s.qrmap||{}).map(([q,n])=>({q,n})); return c; }
 function fromCloudStore(c){ c=c||{};
   const qm = Array.isArray(c.qrmap) ? Object.fromEntries(c.qrmap.map(e=>Array.isArray(e)?e:[e.q,e.n]).filter(e=>e[0])) : Object.assign({},c.qrmap||{});
-  const o={cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:qm}; if (c.autoGive) o.autoGive=c.autoGive; if (c.rules) o.rules=c.rules; return o; }
+  const o={cards:Object.assign({},c.cards||{}), custom:Array.isArray(c.custom)?c.custom.slice():[], qrmap:qm}; if (c.autoGive) o.autoGive=c.autoGive; if (c.rules) o.rules=c.rules; if (c.groups) o.groups=c.groups; if (c.order) o.order=c.order; return o; }
 function monthKey(t){ const d=new Date(t); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
 function groupMonths(list){ const m={}; list.forEach(s=>{ const k=monthKey(s.t); (m[k]=m[k]||[]).push(JSON.parse(JSON.stringify(s))); }); return m; }
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
