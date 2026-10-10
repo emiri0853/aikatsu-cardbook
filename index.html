@@ -184,6 +184,16 @@ mark{background:linear-gradient(transparent 55%,#FFE066 55%);color:inherit;paddi
 .seg button[data-mode="give"][aria-selected="true"]{background:var(--mint);color:#fff}
 .seg button[data-mode="want"][aria-selected="true"]{background:var(--pink);color:#fff}
 .seg button[data-mode="own"][aria-selected="true"]{background:var(--lav);color:#fff}
+.seg button[data-mode="swap"][aria-selected="true"]{background:#FF9A3C;color:#fff}
+.tcount.swap{background:#FF9A3C}
+.swaptag{display:inline-block;margin-top:2px;font-size:11px;font-weight:800;color:#fff;background:#FF9A3C;border-radius:999px;padding:0 8px}
+.sbtns{display:grid;gap:8px;margin-top:12px}
+.sbtns .btn{width:100%}
+.btn.swap{background:#FF9A3C;color:#fff}
+.swaptag.recv{background:var(--lav)}
+.titem.pending .tthumb{outline:3px dashed var(--lav);outline-offset:-3px}
+.titem.pending img{opacity:.6}
+.tpend{position:absolute;left:6px;top:6px;z-index:2;background:var(--lav);color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
 .tcount.own{background:var(--lav)}
 #tradeGrid .tgrid{margin-bottom:18px}
 .tgh{display:flex;align-items:baseline;gap:8px;margin:4px 2px 10px;font-size:17px;font-family:"Mochiy Pop One","M PLUS Rounded 1c",sans-serif;font-weight:400;color:var(--ink)}
@@ -212,6 +222,7 @@ body.dragging .tgrid{outline:2px dashed var(--line);outline-offset:6px;border-ra
 .kstep output{min-width:64px;text-align:center;font-weight:800}
 .rnote{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.6}
 .tprev{display:block;width:100%;border-radius:12px;box-shadow:var(--shadow);margin-top:4px}
+.tprev+.tprev{margin-top:14px}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px 10px}
 .titem{min-width:0}
 .tthumb{position:relative;aspect-ratio:460/670;border-radius:8px;overflow:hidden;display:grid;place-items:center;box-shadow:var(--shadow);
@@ -408,6 +419,7 @@ a.btn{text-decoration:none;display:inline-block}
       <button data-mode="give" aria-selected="true">譲 <b id="giveN">0</b></button>
       <button data-mode="want" aria-selected="false">求 <b id="wantN">0</b></button>
       <button data-mode="own" aria-selected="false">所持 <b id="ownN">0</b></button>
+      <button data-mode="swap" aria-selected="false">交換 <b id="swapN">0</b></button>
     </div>
     <div class="tacts">
       <button class="btn small primary" id="tradeImg">画像保存</button>
@@ -562,6 +574,7 @@ function giveFor(c, own, cur, manual){
 }
 function autoWantMatch(c){
   const w = rules().want; if (!c) return false;
+  if ((st(c.no).recv||0)>0) return false;   // 交換で受け取り待ちのカードは求に戻さない
   if (c.setId==="PA" && !w.para) return false;
   return w.idols.includes(c.idol) || w.rar.includes(c.rar);
 }
@@ -799,6 +812,7 @@ function cardHtml(c){
     <button class="face" data-act="open" aria-label="${esc(label(c))}の詳細">
       <div class="num">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span> ${dot}${c.ap?`<span class="ap">${c.ap}</span>`:""}</div>
       <div class="name ${displayName(c)?"set":""}">${displayName(c)?hl(displayName(c)):"名前を登録 ✎"}</div>
+      ${s.swap>0?`<span class="swaptag">交換に出し中 ${s.swap}</span>`:""}${s.recv>0?`<span class="swaptag recv">受取待ち ${s.recv}</span>`:""}
     </button>
     <div class="ctrl">
       <div class="step">
@@ -841,7 +855,17 @@ const TMODE = {
   give:{label:"譲",  slug:"yuzu",   color:"#22B8A6", has:s=>s.giveCount>0, count:s=>s.giveCount},
   want:{label:"求",  slug:"motomu", color:"#FF5CA8", has:s=>s.want,        count:null},
   own: {label:"所持", slug:"shoji",  color:"#A98BFF", has:s=>s.own>0,       count:s=>s.own},
+  swap:{label:"交換", slug:"koukan", color:"#FF9A3C", has:s=>(s.swap||0)>0||(s.recv||0)>0, count:s=>(s.swap||0)+(s.recv||0)},
 };
+/* ---------- 交換：交換用に出したカードは所持から1枚引いて「交換」に置く ---------- */
+function toSwap(no, n=1){ const s=st(no); n=Math.min(n, s.own); if (n<1) return false;
+  patch(no,{own:s.own-n}); store.cards[no]=Object.assign({}, st(no), {swap:(st(no).swap||0)+n}); save(); return true; }
+function swapDone(no){ const s=st(no); if (!(s.swap>0)) return; store.cards[no]=Object.assign({}, s, {swap:s.swap-1}); save(); }        // 交換済み：所持は減ったまま
+function swapBack(no){ const s=st(no); if (!(s.swap>0)) return; store.cards[no]=Object.assign({}, s, {swap:s.swap-1}); patch(no,{own:st(no).own+1}); } // 戻す：所持に1枚戻す
+// もらう側：求から外して「受け取り待ち」に。所持はまだ増やさない（受け取ったときに＋1）
+function toRecv(no){ const s=st(no); store.cards[no]=Object.assign({}, s, {recv:(s.recv||0)+1, want:false, wm:true}); save(); }
+function recvDone(no){ const s=st(no); if (!(s.recv>0)) return; store.cards[no]=Object.assign({}, s, {recv:s.recv-1}); patch(no,{own:st(no).own+1}); }
+function recvCancel(no){ const s=st(no); if (!(s.recv>0)) return; store.cards[no]=Object.assign({}, s, {recv:s.recv-1, want:true, wm:true}); save(); }
 /* ---------- 譲・求のカテゴリ（レアリティで自動振り分け＋カードごとに移動可） ---------- */
 const GDEF = () => [{id:"c1",title:"A",rar:["ER","PR"]},{id:"c2",title:"B",rar:["R","N"]}];
 function groups(mode){ const g=(store.groups||{})[mode]; return (Array.isArray(g)&&g.length) ? g : GDEF(); }
@@ -859,25 +883,30 @@ function byOrder(mode, list){
 }
 function sectionsOf(mode, list, keepEmpty){
   list = byOrder(mode, list);
+  if (mode==="swap") return [
+    {id:"out", title:"出す", cards:list.filter(c=>st(c.no).swap>0), count:s=>s.swap||0},
+    {id:"in",  title:"もらう（受け取り待ち・所持に未反映）", cards:list.filter(c=>st(c.no).recv>0), count:s=>s.recv||0, pending:true},
+  ].filter(s=>s.cards.length);
   if (!OVR[mode]) return [{title:"", cards:list}];
   return groups(mode).map(g=>({id:g.id, title:g.title, cards:list.filter(c=>groupOf(mode,c).id===g.id)})).filter(s=>keepEmpty || s.cards.length);
 }
-function tItem(c, M){ const s=st(c.no), n=displayName(c);
-  return `<div class="titem" data-tno="${esc(c.no)}"><div class="tthumb" data-tthumb="${esc(c.no)}"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span>
-    ${M.count?`<span class="tcount ${tradeMode}">×${M.count(s)}</span>`:""}</div>
+function tItem(c, M, sec={}){ const s=st(c.no), n=displayName(c), cnt=sec.count||M.count;
+  return `<div class="titem ${sec.pending?"pending":""}" data-tno="${esc(c.no)}" data-side="${esc(sec.id||"")}"><div class="tthumb" data-tthumb="${esc(c.no)}"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span>
+    ${sec.pending?`<span class="tpend">受取待ち</span>`:""}
+    ${cnt?`<span class="tcount ${tradeMode}">×${cnt(s)}</span>`:""}</div>
     <div class="tname">${n?esc(n):esc(c.no)}</div>
     <div class="tno">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span></div></div>`; }
 function renderTrade(){
   const byNo = (a,b)=> a.no.localeCompare(b.no, "ja", {numeric:true});
   const lists = {}; Object.keys(TMODE).forEach(k=>{ lists[k]=allCards().filter(c=>TMODE[k].has(st(c.no))).sort(byNo); });
-  $("#giveN").textContent = lists.give.length; $("#wantN").textContent = lists.want.length; $("#ownN").textContent = lists.own.length;
+  $("#giveN").textContent = lists.give.length; $("#wantN").textContent = lists.want.length; $("#ownN").textContent = lists.own.length; $("#swapN").textContent = lists.swap.length;
   const M = TMODE[tradeMode];
   document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.setAttribute("aria-selected", b.dataset.mode===tradeMode));
   const list = lists[tradeMode];
   $("#groupBtn").hidden = !OVR[tradeMode];
   $("#tradeGrid").innerHTML = list.length ? `<p class="dhint">長押しでドラッグして並べ替え${OVR[tradeMode]?"・別のカテゴリにも移せます":""}</p>` + sectionsOf(tradeMode, list, true).map(sec=>
-      `${sec.title?`<h3 class="tgh">${esc(sec.title)}<small>${sec.cards.length}種</small></h3>`:""}<div class="tgrid" data-sec="${esc(sec.id||"")}">${sec.cards.map(c=>tItem(c,M)).join("")||`<div class="tdrop">ここにドラッグで移動</div>`}</div>`).join("")
-    : `<div class="empty">${({give:"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます",want:"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます",own:"持っているカードはまだありません。<br>カード一覧の「＋」かQR読み込みで登録すると、ここに並びます"})[tradeMode]}</div>`;
+      `${sec.title?`<h3 class="tgh">${esc(sec.title)}<small>${sec.cards.length}種</small></h3>`:""}<div class="tgrid" data-sec="${esc(sec.id||"")}">${sec.cards.map(c=>tItem(c,M,sec)).join("")||`<div class="tdrop">ここにドラッグで移動</div>`}</div>`).join("")
+    : `<div class="empty">${({give:"譲れるカードはまだありません。<br>カード一覧の「譲 ＋」で枚数を入れると、ここに並びます",want:"求めているカードはまだありません。<br>カード一覧の「求」を押すと、ここに並びます",own:"持っているカードはまだありません。<br>カード一覧の「＋」かQR読み込みで登録すると、ここに並びます",swap:"交換中のカードはまだありません。<br>譲のカードをタップ→「交換に出す」（所持から1枚引きます）<br>求のカードをタップ→「交換でもらう」（受け取るまで所持は増えません）"})[tradeMode]}</div>`;
   document.querySelectorAll("[data-tthumb]").forEach(async el=>{ const r=await imgSrc(el.dataset.tthumb); if(r){ el.insertAdjacentHTML("afterbegin",imgTag(r)); el.classList.add("has"); } });
 }
 document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListener("click",()=>{ tradeMode=b.dataset.mode; renderTrade(); }));
@@ -949,14 +978,39 @@ document.querySelectorAll(".seg button[data-mode]").forEach(b=>b.addEventListene
   root.addEventListener("click", e=>{ if (justDragged){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 })();
 $("#tradeGrid").addEventListener("click", e=>{
-  const it=e.target.closest("[data-tno]"); if (!it || !OVR[tradeMode]) return;
-  const no=it.dataset.tno, c=cardByNo(no), key=OVR[tradeMode], cur=st(no)[key];
-  const autoG = groups(tradeMode).find(g=>(g.rar||[]).includes(c.rar)) || groups(tradeMode).slice(-1)[0];
-  openSheet(`<h2>${esc(displayName(c)||c.no)}</h2>
-    <p class="rnote" style="margin-top:0">${TMODE[tradeMode].label}のどのカテゴリに入れる？</p>
-    <div class="opts gpick">${groups(tradeMode).map(g=>`<button class="opt" data-gid="${esc(g.id)}" aria-pressed="${groupOf(tradeMode,c).id===g.id}">${esc(g.title)}</button>`).join("")}</div>
-    <div class="btns"><button class="btn small" data-gid="">レアリティで自動に戻す（${esc(autoG.title)}）</button></div>`);
-  $("#sheet").onclick = ev=>{ const b=ev.target.closest("[data-gid]"); if(!b) return;
+  const it=e.target.closest("[data-tno]"); if (!it) return;
+  const mode=tradeMode, no=it.dataset.tno, c=cardByNo(no), s=st(no), key=OVR[mode];
+  const autoG = key ? (groups(mode).find(g=>(g.rar||[]).includes(c.rar)) || groups(mode).slice(-1)[0]) : null;
+  const catHtml = key ? `<p class="rnote" style="margin-top:0">${TMODE[mode].label}のどのカテゴリに入れる？</p>
+    <div class="opts gpick">${groups(mode).map(g=>`<button class="opt" data-gid="${esc(g.id)}" aria-pressed="${groupOf(mode,c).id===g.id}">${esc(g.title)}</button>`).join("")}</div>
+    <div class="btns"><button class="btn small" data-gid="">レアリティで自動に戻す（${esc(autoG.title)}）</button></div>` : "";
+  let actHtml = "";
+  const side = it.dataset.side;
+  if (mode==="swap" && side==="out") actHtml = `<div class="sbtns">
+      <button class="btn primary" data-sw="done">渡した（交換済み・1枚）</button>
+      <button class="btn" data-sw="back">やめて所持に戻す（1枚）</button>
+      ${s.giveCount>0?`<button class="btn swap" data-sw="more">もう1枚交換に出す（所持 ${s.own} → ${s.own-1}）</button>`:""}</div>
+      <p class="rnote">交換に出している ${s.swap||0}枚 ／ 所持 ${s.own}枚</p>`;
+  else if (mode==="swap" && side==="in") actHtml = `<div class="sbtns">
+      <button class="btn primary" data-sw="got">受け取った（所持 ${s.own} → ${s.own+1}）</button>
+      <button class="btn" data-sw="cancel">やめて求に戻す</button></div>
+      <p class="rnote">受け取り待ち ${s.recv||0}枚。受け取るまで所持の枚数は増えません。</p>`;
+  else if (mode==="give" && s.giveCount>0) actHtml = `<div class="sbtns"><button class="btn swap" data-sw="more">交換に出す（所持 ${s.own} → ${s.own-1}）</button></div>`;
+  else if (mode==="want") actHtml = `<div class="sbtns"><button class="btn swap" data-sw="recv">交換でもらう（求から外して受け取り待ちに）</button></div>`;
+  if (!catHtml && !actHtml) return;
+  openSheet(`<h2>${esc(displayName(c)||c.no)}</h2>${catHtml}${actHtml}`);
+  $("#sheet").onclick = ev=>{
+    const sw=ev.target.closest("[data-sw]");
+    if (sw){
+      if (sw.dataset.sw==="more"){ if (toSwap(no)) toast("交換に1枚出しました"); }
+      else if (sw.dataset.sw==="done"){ swapDone(no); toast("交換済みにしました"); }
+      else if (sw.dataset.sw==="back"){ swapBack(no); toast("所持に1枚戻しました"); }
+      else if (sw.dataset.sw==="recv"){ toRecv(no); toast("受け取り待ちにしました（所持はまだ増えません）"); }
+      else if (sw.dataset.sw==="got"){ recvDone(no); toast("受け取りました。所持を＋1しました"); }
+      else if (sw.dataset.sw==="cancel"){ recvCancel(no); toast("求に戻しました"); }
+      closeSheet(); renderAll(); return;
+    }
+    const b=ev.target.closest("[data-gid]"); if(!b) return;
     const o={}; o[key]=b.dataset.gid||""; store.cards[no]=Object.assign({}, st(no), o); if (!b.dataset.gid) delete store.cards[no][key];
     save(); closeSheet(); renderTrade(); };
 });
@@ -978,7 +1032,7 @@ function openGroups(){
       <div class="opts">${["ER","PR","R","N"].map(r=>`<button class="opt" data-grar="${i}" data-v="${r}" aria-pressed="${(g.rar||[]).includes(r)}">${r}</button>`).join("")}</div>
     </div>`).join("")}
     ${gs.length<5?`<div class="btns"><button class="btn small" data-gadd>＋ カテゴリを追加</button></div>`:""}
-    <p class="rnote">どのカテゴリにも入っていないレアリティは、いちばん下のカテゴリに入ります。</p>
+    <p class="rnote">どのカテゴリにも入っていないレアリティは、いちばん下のカテゴリに入ります。保存すると、譲の枚数・求は自動設定どおりにそろえ直されます。</p>
     <div class="btns"><button class="btn small" data-oreset>並び順を番号順に戻す</button></div>
     <div class="fsheet-foot"><button class="btn" data-gcancel>やめる</button><button class="btn primary" data-gsave>保存</button></div>`;
   openSheet(html());
@@ -999,7 +1053,8 @@ function openGroups(){
     if (t.closest("[data-gsave]")){
       gs.forEach((g,i)=>{ g.title=(g.title||"").trim() || String.fromCharCode(65+i); });
       store.groups = Object.assign({}, store.groups||{}); store.groups[mode]=gs;
-      save(); sheet.oninput=null; closeSheet(); renderTrade(); toast("カテゴリを保存しました");
+      applyRulesAll(true);   // カテゴリを直したら、譲・求の枚数も設定どおりにそろえ直す
+      save(); sheet.oninput=null; closeSheet(); renderAll(); toast("カテゴリを保存しました（譲・求をそろえ直しました）");
     }
   };
 }
@@ -1016,7 +1071,6 @@ function rulesSummary(){
 }
 function openRules(){
   const r = JSON.parse(JSON.stringify(rules()));   // 編集用のコピー（保存するまで反映しない）
-  let resetManual = false;
   const chips = (path, vals) => vals.map(v=>`<button class="opt" data-rt="${path}" data-v="${esc(v)}" aria-pressed="${path.split(".").reduce((o,k)=>o[k],r).includes(v)}">${esc(v)}</button>`).join("");
   const html = () => `<h2>譲・求の自動設定</h2>
     <div class="fsec"><h3>譲</h3><div class="opts">
@@ -1034,8 +1088,7 @@ function openRules(){
     <div class="fsec"><div class="opts">
       <button class="opt" data-rflag="want.para" aria-pressed="${r.want.para}">パラレルも自動で求にする</button>
       <button class="opt" data-rflag="want.clearOnOwn" aria-pressed="${r.want.clearOnOwn}">手に入れたら求を外す</button></div></div>
-    <p class="rnote">保存すると、今のカード全部にこの設定を反映します。カード一覧で手で変えた譲・求は、設定を変えてもそのまま残ります。新しい弾のカードにも、自動の求が付きます。</p>
-    <div class="fsec"><div class="opts"><button class="opt" data-rreset aria-pressed="${resetManual}">手で変えたカードも設定どおりに戻す</button></div></div>
+    <p class="rnote">保存すると、今のカード全部の譲の枚数・求をこの設定どおりにそろえます（手で変えた分もリセットされます）。交換に出しているカードはそのままです。新しい弾のカードにも、自動の求が付きます。</p>
     <div class="fsheet-foot"><button class="btn" data-rcancel>やめる</button><button class="btn primary" data-rsave>保存して反映</button></div>`;
   openSheet(html());
   const sheet=$("#sheet");
@@ -1045,12 +1098,10 @@ function openRules(){
     const rt=t.closest("[data-rt]"); if (rt){ const [a,b]=rt.dataset.rt.split("."), v=rt.dataset.v, arr=r[a][b]; r[a][b]= arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v]; redraw(); return; }
     const rm=t.closest("[data-rmode]"); if (rm){ r.give.mode=rm.dataset.rmode; redraw(); return; }
     const kp=t.closest("[data-keep]"); if (kp){ r.give.keep=Math.min(9,Math.max(0,r.give.keep+(+kp.dataset.keep))); redraw(); return; }
-    if (t.closest("[data-rreset]")){ resetManual=!resetManual; redraw(); return; }
     const rf=t.closest("[data-rflag]"); if (rf){ const [a,b]=rf.dataset.rflag.split("."); r[a][b]=!r[a][b]; redraw(); return; }
     if (t.closest("[data-rcancel]")){ closeSheet(); return; }
     if (t.closest("[data-rsave]")){
-      if (resetManual && !confirm("手で変えた譲・求も、すべて設定どおりに戻します。よろしいですか？")) return;
-      store.rules = r; applyRulesAll(resetManual); closeSheet(); renderAll(); toast("自動設定を保存して反映しました");
+      store.rules = r; applyRulesAll(true); closeSheet(); renderAll(); toast("自動設定を保存して反映しました");
     }
   };
 }
@@ -1071,9 +1122,10 @@ async function canvasImg(c){
 }
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"]};
-async function makeTradeImage(list, M=TMODE[tradeMode], sections){
+async function makeTradeImage(list, M=TMODE[tradeMode], sections, opt={}){
   sections = sections || [{title:"", cards:list}];
-  const cols = list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6;
+  const cols = opt.cols || (list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6);
+  const all = opt.all || list;   // 合計は全体の数で出す（何枚目の画像でも同じ）
   const W=1080, pad=36, gap=16, head=110, sh=64, sgap=26;
   const tw=Math.floor((W-pad*2-gap*(cols-1))/cols), th=Math.round(tw*670/460);
   const secH = sec => (sec.title?sh:0) + Math.ceil(sec.cards.length/cols)*(th+gap) - gap;
@@ -1085,7 +1137,13 @@ async function makeTradeImage(list, M=TMODE[tradeMode], sections){
   x.fillStyle = M.color; rr(x,pad,30,lw,56,28); x.fill();
   x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(M.label, pad+lw/2, 59);
   x.fillStyle="#4A2357"; x.textAlign="left"; x.font=`800 30px ${font}`;
-  x.fillText(M.count ? `${list.length}種 / ${list.reduce((a,c)=>a+M.count(st(c.no)),0)}枚` : `${list.length}種`, pad+lw+18, 59);
+  const total = M.count ? `${all.length}種 / ${all.reduce((a,c)=>a+M.count(st(c.no)),0)}枚` : `${all.length}種`;
+  x.fillText(total, pad+lw+18, 59);
+  if (opt.pages>1){ // 何枚目か（右上）
+    const pg=`${opt.page}/${opt.pages}`; x.font=`800 26px ${font}`; const pw=x.measureText(pg).width+36;
+    x.fillStyle="#fff"; rr(x,W-pad-pw,33,pw,50,25); x.fill(); x.strokeStyle=M.color; x.lineWidth=3; x.stroke();
+    x.fillStyle=M.color; x.textAlign="center"; x.fillText(pg, W-pad-pw/2, 59); x.textAlign="left";
+  }
   const imgs = new Map((await Promise.all(list.map(async c=>[c.no, await canvasImg(c)]))));
   let y0 = head;
   sections.forEach(sec=>{
@@ -1114,8 +1172,9 @@ async function makeTradeImage(list, M=TMODE[tradeMode], sections){
       const g=x.createLinearGradient(cx+6,0,cx+6+rw,0); g.addColorStop(0,RAR_FILL[c.rar][0]); g.addColorStop(1,RAR_FILL[c.rar][1]);
       x.fillStyle=g; rr(x,cx+6,cy+th-bh-6,rw,bh,bh/2); x.fill();
       x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(c.rar, cx+6+rw/2, cy+th-bh/2-6+1);
-      if (M.count && !(M.hideZero && !M.count(st(c.no)))){
-        const t="×"+M.count(st(c.no)); const cw=x.measureText(t).width+bh*0.8;
+      const CNT = sec.count || M.count;
+      if (CNT && !(M.hideZero && !CNT(st(c.no)))){
+        const t="×"+CNT(st(c.no)); const cw=x.measureText(t).width+bh*0.8;
         x.fillStyle=M.color; rr(x,cx+tw-cw-6,cy+th-bh-6,cw,bh,bh/2); x.fill();
         x.fillStyle="#fff"; x.fillText(t, cx+tw-cw/2-6, cy+th-bh/2-6+1);
       }
@@ -1124,24 +1183,49 @@ async function makeTradeImage(list, M=TMODE[tradeMode], sections){
   });
   return cv;
 }
+// 1枚に入れるのは最大42枚（6列×7段・スマホの縦長画面に合う大きさ）。超えたら何枚かに均等に分ける。カテゴリの途中で分かれたら「（続き）」を付ける
+const PAGE_MAX = 42, PAGE_COLS = 6;
+function paginate(sections, n){
+  if (n<=PAGE_MAX) return [sections];
+  const pages = Math.ceil(n/PAGE_MAX), per = Math.ceil(n/pages);
+  const out=[]; let cur=[], cnt=0;
+  sections.forEach(sec=>{
+    let i=0;
+    while (i<sec.cards.length){
+      if (cnt>=per){ out.push(cur); cur=[]; cnt=0; }
+      const take=Math.min(per-cnt, sec.cards.length-i);
+      cur.push({title: sec.title ? sec.title+(i>0?"（続き）":"") : "", cards: sec.cards.slice(i,i+take)});
+      cnt+=take; i+=take;
+    }
+  });
+  if (cur.length) out.push(cur);
+  return out;
+}
 async function openImageSheet(list, M, sections){
   if (!list.length){ toast("カードがまだありません"); return; }
   toast("画像を作っています…");
-  let blob, url;
-  try{ const cv=await makeTradeImage(list, M, sections); blob=await new Promise(r=>cv.toBlob(r,"image/png")); url=URL.createObjectURL(blob); }
-  catch(e){ console.warn(e); toast("画像を作れませんでした"); return; }
-  const name=`aikatsu_${M.slug}_${stamp()}.png`;
-  openSheet(`<h2>${esc(M.label)}の画像</h2>
-    <img class="tprev" src="${url}" alt="${esc(M.label)}のカード一覧画像">
-    <p class="note">画像を長押しして「写真に追加」でも保存できます。</p>
-    <div class="btns"><button class="btn primary" id="tiSave">写真に保存</button><button class="btn" id="tiClose">閉じる</button></div>`);
+  sections = sections || [{title:"", cards:list}];
+  const pages = paginate(sections, list.length), files=[], urls=[], base=`aikatsu_${M.slug}_${stamp()}`;
+  try{
+    for (let i=0;i<pages.length;i++){
+      const cards=[].concat(...pages[i].map(s=>s.cards));
+      const cv=await makeTradeImage(cards, M, pages[i], {all:list, page:i+1, pages:pages.length, cols: pages.length>1 ? PAGE_COLS : undefined});
+      const blob=await new Promise(r=>cv.toBlob(r,"image/png"));
+      files.push(new File([blob], pages.length>1 ? `${base}_${i+1}.png` : `${base}.png`, {type:"image/png"})); urls.push(URL.createObjectURL(blob));
+    }
+  }catch(e){ console.warn(e); toast("画像を作れませんでした"); return; }
+  openSheet(`<h2>${esc(M.label)}の画像${pages.length>1?`（${pages.length}枚）`:""}</h2>
+    ${pages.length>1?`<p class="rnote" style="margin-top:0">カードが多いので${pages.length}枚に分けました。</p>`:""}
+    ${urls.map((u,i)=>`<img class="tprev" src="${u}" alt="${esc(M.label)}のカード一覧画像 ${i+1}枚目">`).join("")}
+    <p class="note">画像を長押しして「写真に追加」でも1枚ずつ保存できます。</p>
+    <div class="btns"><button class="btn primary" id="tiSave">${pages.length>1?`${pages.length}枚まとめて写真に保存`:"写真に保存"}</button><button class="btn" id="tiClose">閉じる</button></div>`);
   $("#tiClose").onclick=closeSheet;
   $("#tiSave").onclick=async ()=>{
-    const file=new File([blob], name, {type:"image/png"});
-    if (navigator.canShare && navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file]}); return; }catch(e){ if (e.name==="AbortError") return; }
+    if (navigator.canShare && navigator.canShare({files})){
+      try{ await navigator.share({files}); return; }catch(e){ if (e.name==="AbortError") return; }
     }
-    const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); toast("画像を保存しました");
+    files.forEach((f,i)=>setTimeout(()=>{ const a=document.createElement("a"); a.href=urls[i]; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); }, i*400));
+    toast("画像を保存しました");
   };
 }
 $("#tradeImg").addEventListener("click", ()=>{ const l=tradeList(); openImageSheet(l, TMODE[tradeMode], sectionsOf(tradeMode, l)); });
@@ -1155,8 +1239,8 @@ $("#gridImg").addEventListener("click", ()=>{
 $("#tradeCopy").addEventListener("click", async ()=>{
   const list=tradeList(); if (!list.length){ toast("カードがまだありません"); return; }
   const M=TMODE[tradeMode];
-  const line = c=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${M.count?" ×"+M.count(st(c.no)):""}`;
-  const text = `【${M.label}】\n` + sectionsOf(tradeMode, list).map(sec=>(sec.title?`＜${sec.title}＞\n`:"")+sec.cards.map(line).join("\n")).join("\n\n");
+  const line = (c,cnt)=>`${displayName(c)||c.no}${c.setId==="PA"?"（パラレル）":""}${cnt?" ×"+cnt(st(c.no)):""}`;
+  const text = `【${M.label}】\n` + sectionsOf(tradeMode, list).map(sec=>(sec.title?`＜${sec.title}＞\n`:"")+sec.cards.map(c=>line(c, sec.count||M.count)).join("\n")).join("\n\n");
   try{ await navigator.clipboard.writeText(text); toast("カード名をコピーしました"); }
   catch(e){
     const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta);
@@ -1606,7 +1690,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-09 r30";
+const APP_VERSION = "2026-10-10 r32";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
