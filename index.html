@@ -523,7 +523,7 @@ MASTER.sets.forEach(s=>(s.cards||[]).forEach(row=>{
   const no = String(row[0]).normalize("NFKC").trim().toUpperCase();
   if (BASE_NOS.has(no)) return;
   const r = RAR_ORDER[String(row[1]).toUpperCase()]!==undefined ? String(row[1]).toUpperCase() : "N";
-  BASE.push({no, rar:r, set:String(s.name||s.id), setId:String(s.id), mname:row[2]?String(row[2]):"", cat:row[3]?String(row[3]):"", idol:row[4]?String(row[4]):"", mtype:TYPES.includes(row[5])?row[5]:"", ap:Number(row[6])||0, master:true});
+  BASE.push({no, rar:r, set:String(s.name||s.id), setId:String(s.id), mname:row[2]?String(row[2]):"", cat:row[3]?String(row[3]):"", idol:row[4]?String(row[4]):"", mtype:TYPES.includes(row[5])?row[5]:"", ap:Number(row[6])||0, brand:row[7]?String(row[7]):"", master:true});
   BASE_NOS.add(no);
 }));
 // 公式カードリストの画像URLは「番号_レアリティ」の規則（E1, E2… の弾のみ）
@@ -545,7 +545,7 @@ const newScanId = t => t.toString(36)+Math.random().toString(36).slice(2,7);
 scans.forEach(s=>{ if (!s.id) s.id=newScanId(s.t||0); });
 // 同期で履歴が入れ替わっても、画面上の行と実データを番号(id)で結びつける
 const liveScan = e => scans.find(s=>s.id===e.id) || e;
-const ui = {q:"", status:"all", rar:[], type:"all", set:"all", cat:"all", idol:"all", sort:"num", thumbs:true, official:true, tab:"list"};
+const ui = {q:"", status:"all", rar:[], type:"all", set:"all", cat:"all", idol:"all", brand:"all", sort:"num", thumbs:true, official:true, tab:"list"};
 try { ui.thumbs = localStorage.getItem(LS_KEY+":thumbs")!=="0"; ui.official = localStorage.getItem(LS_KEY+":official")!=="0"; } catch(e){}
 
 // 表示するカード = マスタ ＋ 自分で追加したカード ＋ データだけ残っているカード
@@ -727,6 +727,7 @@ function matches(c){
   if (ui.rar.length && !ui.rar.includes(c.rar)) return false; // レアリティは複数選択
   if (ui.set!=="all" && c.setId!==ui.set && !(ui.set==="custom" && c.setId==="orphan")) return false;
   if (ui.cat!=="all" && c.cat!==ui.cat) return false;
+  if (ui.brand!=="all" && c.brand!==ui.brand) return false;
   if (ui.idol!=="all" && c.idol!==ui.idol) return false;
   if (ui.type!=="all"){ const ty=typeOf(c); if (ui.type==="none" ? ty : ty!==ui.type) return false; }
   return matchesText(c);
@@ -737,7 +738,7 @@ function matchesText(c){
   if (!q) return true;
   return q.split(/\s+/).every(w=>{
     if (/^\d{1,3}$/.test(w)) return parseInt(c.no.split("-")[1],10)===parseInt(w,10) || c.no.includes(w);
-    const hay = kana([c.no, c.rar, s.name, c.mname, c.cat, c.idol, s.memo, s.type, c.set].join(" "));
+    const hay = kana([c.no, c.rar, s.name, c.mname, c.cat, c.idol, c.brand, s.memo, s.type, c.set].join(" "));
     const loose = x => x.replace(/[-\s・･]/g,"");
     return hay.includes(w) || loose(hay).includes(loose(w));
   });
@@ -751,7 +752,7 @@ function sorted(list){
 
 /* ---------- render: chips ---------- */
 const SORTS = [["num","番号順"],["rar","レア順"],["own","所持数順"]];
-const FILTER_KEYS = ["status","rar","type","set","cat","idol"];
+const FILTER_KEYS = ["status","rar","type","set","cat","idol","brand"];
 function resetFilters(){ FILTER_KEYS.forEach(k=>ui[k] = k==="rar" ? [] : "all"); }
 function filterDefs(){
   const cnt = f => allCards().filter(c=>f(c, st(c.no))).length;
@@ -762,6 +763,7 @@ function filterDefs(){
     {key:"rar", title:"レアリティ（複数選べます）", opts:[["all","すべて"], ...["ER","PR","R","N"].map(r=>[r,r,cnt(c=>c.rar===r)])]},
     {key:"type", title:"タイプ", opts:[["all","すべて"], ...TYPES.map(t=>[t,t,cnt(c=>typeOf(c)===t)]), ["none","未設定",cnt(c=>!typeOf(c))]]},
     {key:"idol", title:"アイドル", opts:[["all","すべて"], ...[...new Set(BASE.map(c=>c.idol).filter(Boolean))].map(x=>[x,x,cnt(c=>c.idol===x)])]},
+    {key:"brand", title:"ブランド", opts:[["all","すべて"], ...["エンジェリーシュガー","フューチャリングガール","スパイシーアゲハ","ドリーミークラウン","メープルリボン","ノーブランド"].filter(x=>BASE.some(c=>c.brand===x)).map(x=>[x,x,cnt(c=>c.brand===x)])]},
     {key:"cat", title:"カテゴリ", opts:[["all","すべて"], ...["トップス","ボトムス","シューズ","アクセサリー","トップス&ボトムス","フルコーデ"].filter(x=>BASE.some(c=>c.cat===x)).map(x=>[x,x,cnt(c=>c.cat===x)])]},
     {key:"set", title:"弾", opts:[["all","すべて"], ...SETS.map(x=>[x.id,x.name,cnt(c=>c.setId===x.id)]), ...extra]},
   ];
@@ -1712,7 +1714,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-11-03 r35";
+const APP_VERSION = "2026-11-04 r36";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
