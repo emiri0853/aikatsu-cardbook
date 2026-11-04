@@ -134,6 +134,10 @@ img.land{inset:auto !important;left:50% !important;top:50% !important;position:a
 .card .face{border:0;background:none;text-align:left;padding:8px 12px 4px;display:block;width:100%;min-width:0}
 .num{font-weight:800;font-size:16px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .rar{font-size:10.5px;font-weight:800;padding:1px 7px;border-radius:999px;color:#fff;letter-spacing:.03em}
+.rar[class~="?"]{background:#C9BCD0}
+.thumb.unrel{background:var(--surface);border:2px dashed var(--line)}
+.thumb.unrel .no{color:var(--surface);-webkit-text-stroke:1.5px var(--line)}
+.thumb.unrel .cam{color:var(--muted)}
 .rar.ER{background:var(--r-er)}.rar.PR{background:var(--r-pr)}.rar.R{background:var(--r-r)}.rar.N{background:var(--r-n)}
 .typedot{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px var(--surface)}
 .name{font-size:12.5px;color:var(--muted);min-height:2.7em;line-height:1.35;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -373,6 +377,13 @@ a.btn{text-decoration:none;display:inline-block}
 .set-sec h3{margin:0 0 4px;font-size:15px}
 .set-sec p{margin:0 0 8px;font-size:13px;color:var(--muted)}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;margin:6px 0}
+.ask-bg{position:fixed;inset:0;z-index:70;background:rgba(60,20,70,.45);display:flex;align-items:center;justify-content:center;padding:24px}
+.ask-bg[hidden]{display:none}
+.ask{background:var(--surface);border-radius:22px;padding:22px 18px 16px;max-width:360px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.ask p{margin:0 0 16px;font-weight:800;font-size:15px;line-height:1.6}
+.ask-btns{display:grid;gap:8px}
+.ask-btns .btn{width:100%}
+.btn.warn{color:#fff;background:#E2455F}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);
   padding:10px 18px;border-radius:999px;font-weight:800;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1}
@@ -491,6 +502,7 @@ a.btn{text-decoration:none;display:inline-block}
   <div class="sheet" role="dialog" aria-modal="true" id="sheet"></div>
 </div>
 <div class="calcbar" id="calcBar" hidden></div>
+<div class="ask-bg" id="askBg" hidden><div class="ask" role="alertdialog" aria-modal="true"><p id="askMsg"></p><div class="ask-btns" id="askBtns"></div></div></div>
 <div class="toast" id="toast"></div>
 <canvas id="cv" hidden></canvas>
 <input type="file" accept="image/*" id="tilePhoto" hidden>
@@ -499,7 +511,7 @@ a.btn{text-decoration:none;display:inline-block}
 (() => {
 "use strict";
 /* ---------- master: cards.js から読み込み ---------- */
-const RAR_ORDER = {ER:0, PR:1, R:2, N:3};
+const RAR_ORDER = {ER:0, PR:1, R:2, N:3, "?":9};   // "?" = 公式未公開（番号だけ分かっているプロモなど）
 const TYPES = ["キュート","クール","セクシー","ポップ"];
 const TYPE_COLOR = {"キュート":"var(--c-cute)","クール":"var(--c-cool)","セクシー":"var(--c-sexy)","ポップ":"var(--c-pop)"};
 const MASTER = (window.CARD_MASTER && Array.isArray(window.CARD_MASTER.sets)) ? window.CARD_MASTER : {version:"なし", sets:[]};
@@ -515,8 +527,9 @@ MASTER.sets.forEach(s=>(s.cards||[]).forEach(row=>{
   BASE_NOS.add(no);
 }));
 // 公式カードリストの画像URLは「番号_レアリティ」の規則（E1, E2… の弾のみ）
+const unrel = c => c && c.rar==="?";
 const officialUrl = c => {
-  if (!c.master) return null;
+  if (!c.master || unrel(c)) return null;
   const base = "https://dcd.aikatsu.com/encore/images/cardlist/card/";
   if (/^(E\d+|EP)$/.test(c.setId)) return `${base}${c.no}_${c.rar}.webp`;
   if (c.setId==="PA") return `${base}${c.no.replace(/-P$/,"")}_${c.rar}_p1.webp`; // パラレルは「元の番号_レア_p1」
@@ -806,12 +819,12 @@ function cardHtml(c){
   return `<article class="card ${s.own>0?"has":""} ${ui.thumbs?"showthumb":""} ${sel?"sel":""}" data-no="${esc(c.no)}">
     ${sel?`<span class="sel-badge">✓ コーデ</span>`:""}
     ${s.own>0 && ui.thumbs ? `<span class="own-badge">♡ 所持</span>` : ""}
-    <button class="thumb" data-act="thumb" data-thumb="${esc(c.no)}" aria-label="${esc(c.no)}の写真">
-      <span class="ph"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span><span class="cam">📷 写真を登録</span></span>
+    <button class="thumb ${unrel(c)?"unrel":""}" data-act="thumb" data-thumb="${esc(c.no)}" aria-label="${esc(c.no)}の写真">
+      <span class="ph"><span class="no">${esc(c.no.split("-")[1]||c.no)}</span><span class="cam">${unrel(c)?"未公開":"📷 写真を登録"}</span></span>
     </button>
     <button class="face" data-act="open" aria-label="${esc(label(c))}の詳細">
       <div class="num">${esc(c.no)} <span class="rar ${c.rar}">${c.rar}</span> ${dot}${c.ap?`<span class="ap">${c.ap}</span>`:""}</div>
-      <div class="name ${displayName(c)?"set":""}">${displayName(c)?hl(displayName(c)):"名前を登録 ✎"}</div>
+      <div class="name ${displayName(c)?"set":""}">${displayName(c)?hl(displayName(c)):(unrel(c)?"公式未公開":"名前を登録 ✎")}</div>
       ${s.swap>0?`<span class="swaptag">交換に出し中 ${s.swap}</span>`:""}${s.recv>0?`<span class="swaptag recv">受取待ち ${s.recv}</span>`:""}
     </button>
     <div class="ctrl">
@@ -846,7 +859,7 @@ function renderGrid(){
   fillThumbs();
 }
 function renderHeader(){
-  const own = allCards().filter(c=>st(c.no).own>0).length, total = allCards().length;
+  const own = allCards().filter(c=>st(c.no).own>0).length, total = allCards().filter(c=>!unrel(c) || st(c.no).own>0).length;   // 未公開の番号は数えない
   $("#ownCount").textContent = own; $("#totalCount").textContent = total;
   $("#ownBar").style.width = total ? (own/total*100)+"%" : "0";
 }
@@ -1089,6 +1102,8 @@ function openRules(){
       <button class="opt" data-rflag="want.para" aria-pressed="${r.want.para}">パラレルも自動で求にする</button>
       <button class="opt" data-rflag="want.clearOnOwn" aria-pressed="${r.want.clearOnOwn}">手に入れたら求を外す</button></div></div>
     <p class="rnote">保存すると、今のカード全部の譲の枚数・求をこの設定どおりにそろえます（手で変えた分もリセットされます）。交換に出しているカードはそのままです。新しい弾のカードにも、自動の求が付きます。</p>
+    <div class="fsec"><h3>リセット</h3><button class="btn small danger" data-gzero>譲を全部0にする</button>
+      <p class="rnote">全カードの譲を0枚にします（所持枚数・求・交換はそのまま）。0にしたカードは、所持が増えても自動で譲に入りません。設定を「保存して反映」すると自動の譲に戻ります。</p></div>
     <div class="fsheet-foot"><button class="btn" data-rcancel>やめる</button><button class="btn primary" data-rsave>保存して反映</button></div>`;
   openSheet(html());
   const sheet=$("#sheet");
@@ -1100,6 +1115,13 @@ function openRules(){
     const kp=t.closest("[data-keep]"); if (kp){ r.give.keep=Math.min(9,Math.max(0,r.give.keep+(+kp.dataset.keep))); redraw(); return; }
     const rf=t.closest("[data-rflag]"); if (rf){ const [a,b]=rf.dataset.rflag.split("."); r[a][b]=!r[a][b]; redraw(); return; }
     if (t.closest("[data-rcancel]")){ closeSheet(); return; }
+    if (t.closest("[data-gzero]")){
+      const n = allCards().filter(c=>st(c.no).giveCount>0).length;
+      if (!n){ toast("譲のカードはありません"); return; }
+      if (!confirm(`譲に入っている${n}種を、全部0枚にします。よろしいですか？`)) return;
+      allCards().forEach(c=>{ const s=st(c.no); if (s.giveCount>0 || store.cards[c.no]) store.cards[c.no]=Object.assign({}, s, {giveCount:0, give:false, gm:true}); });
+      save(); closeSheet(); renderAll(); toast(`譲を全部0にしました（${n}種）`); return;
+    }
     if (t.closest("[data-rsave]")){
       store.rules = r; applyRulesAll(true); closeSheet(); renderAll(); toast("自動設定を保存して反映しました");
     }
@@ -1121,7 +1143,7 @@ async function canvasImg(c){
   return u ? loadImg("https://wsrv.nl/?url="+encodeURIComponent(u.replace(/^https?:\/\//,""))+"&w=360&output=png") : null;
 }
 function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"]};
+const RAR_FILL = {ER:["#FFC94D","#B79BFF"], PR:["#E2559E","#E2559E"], R:["#5C9DF2","#5C9DF2"], N:["#B29BBE","#B29BBE"], "?":["#C9BCD0","#C9BCD0"]};
 async function makeTradeImage(list, M=TMODE[tradeMode], sections, opt={}){
   sections = sections || [{title:"", cards:list}];
   const cols = opt.cols || (list.length<=4 ? Math.max(list.length,3) : list.length<=15 ? 5 : 6);
@@ -1690,7 +1712,7 @@ async function downloadFile(filename, text, type){
 }
 
 /* ---------- settings: backup / restore ---------- */
-const APP_VERSION = "2026-10-10 r32";
+const APP_VERSION = "2026-11-03 r35";
 const BACKUP_KIND = "aikatsu-encore-cardbook";
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
 function snapInfo(){
@@ -1841,7 +1863,16 @@ async function cloudStart(){
       && stableStr(groupMonths(scans))===stableStr(groupMonths(rscans.slice().sort((a,b)=>a.t-b.t)));
     if (remoteHas && localHas && !same){
       try{ localStorage.setItem(LS_KEY+":beforeCloud", JSON.stringify({at:Date.now(), store, scans})); }catch(e){}
-      const useCloud = confirm("クラウドとこの端末で、データが違います。\n\nOK：クラウドのデータを使う（この端末のデータは置き換え）\nキャンセル：この端末のデータをクラウドに上げる（クラウドのデータは置き換え）");
+      let useCloud = false;
+      for(;;){
+        const c = await ask("クラウドとこの端末で、データが違います。どちらのデータを使いますか？",
+          [["cloud","クラウドのデータを使う","primary"],["local","この端末のデータをクラウドに上げる",""]]);
+        if (c!=="cloud") break;
+        // 最終確認：この端末のデータが消えることをはっきり伝える。「いいえ」なら最初の選択に戻る
+        const ok = await ask("この端末のデータは消えて、クラウドのデータに置き換わります。本当によろしいですか？",
+          [["yes","はい","warn"],["no","いいえ",""]]);
+        if (ok==="yes"){ useCloud=true; break; }
+      }
       if (useCloud) applyRemote(rs, rscans);
     } else if (remoteHas && !same){ applyRemote(rs, rscans); }
     // 今クラウドにある内容を「前回送った内容」として覚える（差分だけ送るため）
@@ -1890,6 +1921,15 @@ async function cloudPush(){
 }
 window.addEventListener("online", ()=>{ if (cloud.user && cloud.status==="error") cloudPush(); });
 
+// はい／いいえなど、ボタンの文字を自由に決められる確認ダイアログ。押したボタンのキーを返す
+function ask(msg, buttons){
+  return new Promise(res=>{
+    $("#askMsg").textContent = msg;
+    $("#askBtns").innerHTML = buttons.map(([k,l,cls])=>`<button class="btn ${cls}" data-ask="${k}">${esc(l)}</button>`).join("");
+    $("#askBg").hidden = false;
+    $("#askBtns").onclick = e=>{ const b=e.target.closest("[data-ask]"); if(!b) return; $("#askBg").hidden=true; res(b.dataset.ask); };
+  });
+}
 function authErr(e){
   const c=(e&&e.code)||"";
   if (c.includes("invalid-credential")||c.includes("wrong-password")||c.includes("user-not-found")) return "メールアドレスかパスワードが違います";
